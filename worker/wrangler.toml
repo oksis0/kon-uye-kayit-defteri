@@ -1,0 +1,21 @@
+# Ortak Pay Defteri — Cloudflare Worker yapılandırması
+# Bu dosya git'e girer (sır içermez); gerçek sırlar `wrangler secret put` ile
+# ayrı ayrı set edilir (bkz. README.md).
+
+name = "ortak-defteri-worker"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# R2 bucket'ı BINDING olarak tanımlanıyor — bu sayede R2 için ayrıca bir
+# access key/secret ÜRETİLMİYOR, Worker doğrudan env.BELGELER üzerinden
+# bucket'a erişiyor.
+[[r2_buckets]]
+binding = "BELGELER"
+bucket_name = "ortak-defteri-belgeler"
+
+# NOT: Aşağıdaki secret'lar buraya YAZILMAZ, `wrangler secret put <ISIM>`
+# komutuyla Cloudflare'e ayrı ayrı yüklenir:
+#   AZURE_ENDPOINT
+#   AZURE_ANAHTAR
+#   FIREBASE_PROJECT_ID
+#   YETKILI_UID

@@ -1,0 +1,12 @@
+# Yerel geliştirme için örnek dosya.
+# Bu dosyayı kopyalayıp adını ".dev.vars" yap — GERÇEK değerleri sadece
+# ".dev.vars" içine yaz (o dosya .gitignore'da, asla commit edilmez).
+#
+#   cp .dev.vars.example .dev.vars
+#
+# Sonra `wrangler dev` çalıştırdığında bu değerler otomatik yüklenir.
+
+AZURE_ENDPOINT=https://xxx.cognitiveservices.azure.com
+AZURE_ANAHTAR=buraya-azure-document-intelligence-api-anahtarini-yaz
+FIREBASE_PROJECT_ID=buraya-firebase-proje-kimligini-yaz
+YETKILI_UID=buraya-tek-yetkili-firebase-kullanicisinin-uid-sini-yaz
