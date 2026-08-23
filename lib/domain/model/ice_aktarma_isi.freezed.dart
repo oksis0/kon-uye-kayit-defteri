@@ -16,7 +16,8 @@ mixin _$IceAktarmaIsi {
 
  String get id; String get dosyaYolu; String get dosyaAdi; String get dosyaHash; KuyrukDurumu get durum; bool get islendi; String? get hataMesaji; int get denemeSayisi; String? get olusanOrtakId;/// Azure'un ham cevabı. Uygulama inceleme formundayken çökerse, açılışta
 /// OCR'ı tekrarlamadan (kota israfı olmadan) forma dönebilmek için.
- String? get ocrHamJson; DateTime get eklenmeTarihi;
+ String? get ocrHamJson;/// `ocrYapiliyor` durumundayken hangi Azure işleminin sorgulanacağı.
+ String? get azureOperationId; DateTime get eklenmeTarihi;
 /// Create a copy of IceAktarmaIsi
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,16 +28,16 @@ $IceAktarmaIsiCopyWith<IceAktarmaIsi> get copyWith => _$IceAktarmaIsiCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is IceAktarmaIsi&&(identical(other.id, id) || other.id == id)&&(identical(other.dosyaYolu, dosyaYolu) || other.dosyaYolu == dosyaYolu)&&(identical(other.dosyaAdi, dosyaAdi) || other.dosyaAdi == dosyaAdi)&&(identical(other.dosyaHash, dosyaHash) || other.dosyaHash == dosyaHash)&&(identical(other.durum, durum) || other.durum == durum)&&(identical(other.islendi, islendi) || other.islendi == islendi)&&(identical(other.hataMesaji, hataMesaji) || other.hataMesaji == hataMesaji)&&(identical(other.denemeSayisi, denemeSayisi) || other.denemeSayisi == denemeSayisi)&&(identical(other.olusanOrtakId, olusanOrtakId) || other.olusanOrtakId == olusanOrtakId)&&(identical(other.ocrHamJson, ocrHamJson) || other.ocrHamJson == ocrHamJson)&&(identical(other.eklenmeTarihi, eklenmeTarihi) || other.eklenmeTarihi == eklenmeTarihi));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is IceAktarmaIsi&&(identical(other.id, id) || other.id == id)&&(identical(other.dosyaYolu, dosyaYolu) || other.dosyaYolu == dosyaYolu)&&(identical(other.dosyaAdi, dosyaAdi) || other.dosyaAdi == dosyaAdi)&&(identical(other.dosyaHash, dosyaHash) || other.dosyaHash == dosyaHash)&&(identical(other.durum, durum) || other.durum == durum)&&(identical(other.islendi, islendi) || other.islendi == islendi)&&(identical(other.hataMesaji, hataMesaji) || other.hataMesaji == hataMesaji)&&(identical(other.denemeSayisi, denemeSayisi) || other.denemeSayisi == denemeSayisi)&&(identical(other.olusanOrtakId, olusanOrtakId) || other.olusanOrtakId == olusanOrtakId)&&(identical(other.ocrHamJson, ocrHamJson) || other.ocrHamJson == ocrHamJson)&&(identical(other.azureOperationId, azureOperationId) || other.azureOperationId == azureOperationId)&&(identical(other.eklenmeTarihi, eklenmeTarihi) || other.eklenmeTarihi == eklenmeTarihi));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,dosyaYolu,dosyaAdi,dosyaHash,durum,islendi,hataMesaji,denemeSayisi,olusanOrtakId,ocrHamJson,eklenmeTarihi);
+int get hashCode => Object.hash(runtimeType,id,dosyaYolu,dosyaAdi,dosyaHash,durum,islendi,hataMesaji,denemeSayisi,olusanOrtakId,ocrHamJson,azureOperationId,eklenmeTarihi);
 
 @override
 String toString() {
-  return 'IceAktarmaIsi(id: $id, dosyaYolu: $dosyaYolu, dosyaAdi: $dosyaAdi, dosyaHash: $dosyaHash, durum: $durum, islendi: $islendi, hataMesaji: $hataMesaji, denemeSayisi: $denemeSayisi, olusanOrtakId: $olusanOrtakId, ocrHamJson: $ocrHamJson, eklenmeTarihi: $eklenmeTarihi)';
+  return 'IceAktarmaIsi(id: $id, dosyaYolu: $dosyaYolu, dosyaAdi: $dosyaAdi, dosyaHash: $dosyaHash, durum: $durum, islendi: $islendi, hataMesaji: $hataMesaji, denemeSayisi: $denemeSayisi, olusanOrtakId: $olusanOrtakId, ocrHamJson: $ocrHamJson, azureOperationId: $azureOperationId, eklenmeTarihi: $eklenmeTarihi)';
 }
 
 
@@ -47,7 +48,7 @@ abstract mixin class $IceAktarmaIsiCopyWith<$Res>  {
   factory $IceAktarmaIsiCopyWith(IceAktarmaIsi value, $Res Function(IceAktarmaIsi) _then) = _$IceAktarmaIsiCopyWithImpl;
 @useResult
 $Res call({
- String id, String dosyaYolu, String dosyaAdi, String dosyaHash, KuyrukDurumu durum, bool islendi, String? hataMesaji, int denemeSayisi, String? olusanOrtakId, String? ocrHamJson, DateTime eklenmeTarihi
+ String id, String dosyaYolu, String dosyaAdi, String dosyaHash, KuyrukDurumu durum, bool islendi, String? hataMesaji, int denemeSayisi, String? olusanOrtakId, String? ocrHamJson, String? azureOperationId, DateTime eklenmeTarihi
 });
 
 
@@ -64,7 +65,7 @@ class _$IceAktarmaIsiCopyWithImpl<$Res>
 
 /// Create a copy of IceAktarmaIsi
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? dosyaYolu = null,Object? dosyaAdi = null,Object? dosyaHash = null,Object? durum = null,Object? islendi = null,Object? hataMesaji = freezed,Object? denemeSayisi = null,Object? olusanOrtakId = freezed,Object? ocrHamJson = freezed,Object? eklenmeTarihi = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? dosyaYolu = null,Object? dosyaAdi = null,Object? dosyaHash = null,Object? durum = null,Object? islendi = null,Object? hataMesaji = freezed,Object? denemeSayisi = null,Object? olusanOrtakId = freezed,Object? ocrHamJson = freezed,Object? azureOperationId = freezed,Object? eklenmeTarihi = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,dosyaYolu: null == dosyaYolu ? _self.dosyaYolu : dosyaYolu // ignore: cast_nullable_to_non_nullable
@@ -76,6 +77,7 @@ as bool,hataMesaji: freezed == hataMesaji ? _self.hataMesaji : hataMesaji // ign
 as String?,denemeSayisi: null == denemeSayisi ? _self.denemeSayisi : denemeSayisi // ignore: cast_nullable_to_non_nullable
 as int,olusanOrtakId: freezed == olusanOrtakId ? _self.olusanOrtakId : olusanOrtakId // ignore: cast_nullable_to_non_nullable
 as String?,ocrHamJson: freezed == ocrHamJson ? _self.ocrHamJson : ocrHamJson // ignore: cast_nullable_to_non_nullable
+as String?,azureOperationId: freezed == azureOperationId ? _self.azureOperationId : azureOperationId // ignore: cast_nullable_to_non_nullable
 as String?,eklenmeTarihi: null == eklenmeTarihi ? _self.eklenmeTarihi : eklenmeTarihi // ignore: cast_nullable_to_non_nullable
 as DateTime,
   ));
@@ -162,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String dosyaYolu,  String dosyaAdi,  String dosyaHash,  KuyrukDurumu durum,  bool islendi,  String? hataMesaji,  int denemeSayisi,  String? olusanOrtakId,  String? ocrHamJson,  DateTime eklenmeTarihi)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String dosyaYolu,  String dosyaAdi,  String dosyaHash,  KuyrukDurumu durum,  bool islendi,  String? hataMesaji,  int denemeSayisi,  String? olusanOrtakId,  String? ocrHamJson,  String? azureOperationId,  DateTime eklenmeTarihi)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _IceAktarmaIsi() when $default != null:
-return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.durum,_that.islendi,_that.hataMesaji,_that.denemeSayisi,_that.olusanOrtakId,_that.ocrHamJson,_that.eklenmeTarihi);case _:
+return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.durum,_that.islendi,_that.hataMesaji,_that.denemeSayisi,_that.olusanOrtakId,_that.ocrHamJson,_that.azureOperationId,_that.eklenmeTarihi);case _:
   return orElse();
 
 }
@@ -183,10 +185,10 @@ return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.du
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String dosyaYolu,  String dosyaAdi,  String dosyaHash,  KuyrukDurumu durum,  bool islendi,  String? hataMesaji,  int denemeSayisi,  String? olusanOrtakId,  String? ocrHamJson,  DateTime eklenmeTarihi)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String dosyaYolu,  String dosyaAdi,  String dosyaHash,  KuyrukDurumu durum,  bool islendi,  String? hataMesaji,  int denemeSayisi,  String? olusanOrtakId,  String? ocrHamJson,  String? azureOperationId,  DateTime eklenmeTarihi)  $default,) {final _that = this;
 switch (_that) {
 case _IceAktarmaIsi():
-return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.durum,_that.islendi,_that.hataMesaji,_that.denemeSayisi,_that.olusanOrtakId,_that.ocrHamJson,_that.eklenmeTarihi);case _:
+return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.durum,_that.islendi,_that.hataMesaji,_that.denemeSayisi,_that.olusanOrtakId,_that.ocrHamJson,_that.azureOperationId,_that.eklenmeTarihi);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +205,10 @@ return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.du
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String dosyaYolu,  String dosyaAdi,  String dosyaHash,  KuyrukDurumu durum,  bool islendi,  String? hataMesaji,  int denemeSayisi,  String? olusanOrtakId,  String? ocrHamJson,  DateTime eklenmeTarihi)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String dosyaYolu,  String dosyaAdi,  String dosyaHash,  KuyrukDurumu durum,  bool islendi,  String? hataMesaji,  int denemeSayisi,  String? olusanOrtakId,  String? ocrHamJson,  String? azureOperationId,  DateTime eklenmeTarihi)?  $default,) {final _that = this;
 switch (_that) {
 case _IceAktarmaIsi() when $default != null:
-return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.durum,_that.islendi,_that.hataMesaji,_that.denemeSayisi,_that.olusanOrtakId,_that.ocrHamJson,_that.eklenmeTarihi);case _:
+return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.durum,_that.islendi,_that.hataMesaji,_that.denemeSayisi,_that.olusanOrtakId,_that.ocrHamJson,_that.azureOperationId,_that.eklenmeTarihi);case _:
   return null;
 
 }
@@ -218,7 +220,7 @@ return $default(_that.id,_that.dosyaYolu,_that.dosyaAdi,_that.dosyaHash,_that.du
 
 
 class _IceAktarmaIsi implements IceAktarmaIsi {
-  const _IceAktarmaIsi({required this.id, required this.dosyaYolu, required this.dosyaAdi, required this.dosyaHash, required this.durum, this.islendi = false, this.hataMesaji, this.denemeSayisi = 0, this.olusanOrtakId, this.ocrHamJson, required this.eklenmeTarihi});
+  const _IceAktarmaIsi({required this.id, required this.dosyaYolu, required this.dosyaAdi, required this.dosyaHash, required this.durum, this.islendi = false, this.hataMesaji, this.denemeSayisi = 0, this.olusanOrtakId, this.ocrHamJson, this.azureOperationId, required this.eklenmeTarihi});
   
 
 @override final  String id;
@@ -233,6 +235,8 @@ class _IceAktarmaIsi implements IceAktarmaIsi {
 /// Azure'un ham cevabı. Uygulama inceleme formundayken çökerse, açılışta
 /// OCR'ı tekrarlamadan (kota israfı olmadan) forma dönebilmek için.
 @override final  String? ocrHamJson;
+/// `ocrYapiliyor` durumundayken hangi Azure işleminin sorgulanacağı.
+@override final  String? azureOperationId;
 @override final  DateTime eklenmeTarihi;
 
 /// Create a copy of IceAktarmaIsi
@@ -245,16 +249,16 @@ _$IceAktarmaIsiCopyWith<_IceAktarmaIsi> get copyWith => __$IceAktarmaIsiCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _IceAktarmaIsi&&(identical(other.id, id) || other.id == id)&&(identical(other.dosyaYolu, dosyaYolu) || other.dosyaYolu == dosyaYolu)&&(identical(other.dosyaAdi, dosyaAdi) || other.dosyaAdi == dosyaAdi)&&(identical(other.dosyaHash, dosyaHash) || other.dosyaHash == dosyaHash)&&(identical(other.durum, durum) || other.durum == durum)&&(identical(other.islendi, islendi) || other.islendi == islendi)&&(identical(other.hataMesaji, hataMesaji) || other.hataMesaji == hataMesaji)&&(identical(other.denemeSayisi, denemeSayisi) || other.denemeSayisi == denemeSayisi)&&(identical(other.olusanOrtakId, olusanOrtakId) || other.olusanOrtakId == olusanOrtakId)&&(identical(other.ocrHamJson, ocrHamJson) || other.ocrHamJson == ocrHamJson)&&(identical(other.eklenmeTarihi, eklenmeTarihi) || other.eklenmeTarihi == eklenmeTarihi));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _IceAktarmaIsi&&(identical(other.id, id) || other.id == id)&&(identical(other.dosyaYolu, dosyaYolu) || other.dosyaYolu == dosyaYolu)&&(identical(other.dosyaAdi, dosyaAdi) || other.dosyaAdi == dosyaAdi)&&(identical(other.dosyaHash, dosyaHash) || other.dosyaHash == dosyaHash)&&(identical(other.durum, durum) || other.durum == durum)&&(identical(other.islendi, islendi) || other.islendi == islendi)&&(identical(other.hataMesaji, hataMesaji) || other.hataMesaji == hataMesaji)&&(identical(other.denemeSayisi, denemeSayisi) || other.denemeSayisi == denemeSayisi)&&(identical(other.olusanOrtakId, olusanOrtakId) || other.olusanOrtakId == olusanOrtakId)&&(identical(other.ocrHamJson, ocrHamJson) || other.ocrHamJson == ocrHamJson)&&(identical(other.azureOperationId, azureOperationId) || other.azureOperationId == azureOperationId)&&(identical(other.eklenmeTarihi, eklenmeTarihi) || other.eklenmeTarihi == eklenmeTarihi));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,dosyaYolu,dosyaAdi,dosyaHash,durum,islendi,hataMesaji,denemeSayisi,olusanOrtakId,ocrHamJson,eklenmeTarihi);
+int get hashCode => Object.hash(runtimeType,id,dosyaYolu,dosyaAdi,dosyaHash,durum,islendi,hataMesaji,denemeSayisi,olusanOrtakId,ocrHamJson,azureOperationId,eklenmeTarihi);
 
 @override
 String toString() {
-  return 'IceAktarmaIsi(id: $id, dosyaYolu: $dosyaYolu, dosyaAdi: $dosyaAdi, dosyaHash: $dosyaHash, durum: $durum, islendi: $islendi, hataMesaji: $hataMesaji, denemeSayisi: $denemeSayisi, olusanOrtakId: $olusanOrtakId, ocrHamJson: $ocrHamJson, eklenmeTarihi: $eklenmeTarihi)';
+  return 'IceAktarmaIsi(id: $id, dosyaYolu: $dosyaYolu, dosyaAdi: $dosyaAdi, dosyaHash: $dosyaHash, durum: $durum, islendi: $islendi, hataMesaji: $hataMesaji, denemeSayisi: $denemeSayisi, olusanOrtakId: $olusanOrtakId, ocrHamJson: $ocrHamJson, azureOperationId: $azureOperationId, eklenmeTarihi: $eklenmeTarihi)';
 }
 
 
@@ -265,7 +269,7 @@ abstract mixin class _$IceAktarmaIsiCopyWith<$Res> implements $IceAktarmaIsiCopy
   factory _$IceAktarmaIsiCopyWith(_IceAktarmaIsi value, $Res Function(_IceAktarmaIsi) _then) = __$IceAktarmaIsiCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String dosyaYolu, String dosyaAdi, String dosyaHash, KuyrukDurumu durum, bool islendi, String? hataMesaji, int denemeSayisi, String? olusanOrtakId, String? ocrHamJson, DateTime eklenmeTarihi
+ String id, String dosyaYolu, String dosyaAdi, String dosyaHash, KuyrukDurumu durum, bool islendi, String? hataMesaji, int denemeSayisi, String? olusanOrtakId, String? ocrHamJson, String? azureOperationId, DateTime eklenmeTarihi
 });
 
 
@@ -282,7 +286,7 @@ class __$IceAktarmaIsiCopyWithImpl<$Res>
 
 /// Create a copy of IceAktarmaIsi
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? dosyaYolu = null,Object? dosyaAdi = null,Object? dosyaHash = null,Object? durum = null,Object? islendi = null,Object? hataMesaji = freezed,Object? denemeSayisi = null,Object? olusanOrtakId = freezed,Object? ocrHamJson = freezed,Object? eklenmeTarihi = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? dosyaYolu = null,Object? dosyaAdi = null,Object? dosyaHash = null,Object? durum = null,Object? islendi = null,Object? hataMesaji = freezed,Object? denemeSayisi = null,Object? olusanOrtakId = freezed,Object? ocrHamJson = freezed,Object? azureOperationId = freezed,Object? eklenmeTarihi = null,}) {
   return _then(_IceAktarmaIsi(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,dosyaYolu: null == dosyaYolu ? _self.dosyaYolu : dosyaYolu // ignore: cast_nullable_to_non_nullable
@@ -294,6 +298,7 @@ as bool,hataMesaji: freezed == hataMesaji ? _self.hataMesaji : hataMesaji // ign
 as String?,denemeSayisi: null == denemeSayisi ? _self.denemeSayisi : denemeSayisi // ignore: cast_nullable_to_non_nullable
 as int,olusanOrtakId: freezed == olusanOrtakId ? _self.olusanOrtakId : olusanOrtakId // ignore: cast_nullable_to_non_nullable
 as String?,ocrHamJson: freezed == ocrHamJson ? _self.ocrHamJson : ocrHamJson // ignore: cast_nullable_to_non_nullable
+as String?,azureOperationId: freezed == azureOperationId ? _self.azureOperationId : azureOperationId // ignore: cast_nullable_to_non_nullable
 as String?,eklenmeTarihi: null == eklenmeTarihi ? _self.eklenmeTarihi : eklenmeTarihi // ignore: cast_nullable_to_non_nullable
 as DateTime,
   ));

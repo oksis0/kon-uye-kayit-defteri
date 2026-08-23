@@ -23,6 +23,11 @@ class IceAktarmaKuyrugu extends Table {
   IntColumn get denemeSayisi => integer().withDefault(const Constant(0))();
   TextColumn get olusanOrtakId => text().nullable()();
   TextColumn get ocrHamJson => text().nullable()();
+
+  /// Azure'un asenkron analiz işlemi kimliği — `ocrYapiliyor` durumundayken
+  /// hangi işlemin sonucunun sorgulanacağını bilmek için (PLAN.md §2.3).
+  TextColumn get azureOperationId => text().nullable()();
+
   DateTimeColumn get eklenmeTarihi => dateTime()();
 
   @override

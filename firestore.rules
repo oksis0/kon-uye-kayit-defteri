@@ -1,0 +1,25 @@
+rules_version = '2';
+
+// Ortak Pay Defteri — Firestore Güvenlik Kuralları (PLAN.md §12.3)
+//
+// ★ Tek ortak hesap modeli: UID'yi SABİT olarak buraya yapıştırın.
+// Firebase Konsolu > Authentication > Users'tan kopyalayın.
+// `request.auth != null` YETERSİZ — projede herhangi bir yolla hesap
+// açan biri veriye erişebilir. UID sabitlenince SADECE o tek hesap
+// okuyup yazabilir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function tekYetkiliKullanici() {
+      return request.auth != null
+          && request.auth.uid == 'BURAYA_UID_YAPISTIR';
+    }
+
+    match /ortaklar/{ortakId}   { allow read, write: if tekYetkiliKullanici(); }
+    match /sistem/{belge=**}    { allow read, write: if tekYetkiliKullanici(); }
+    match /silmeTalepleri/{id}  { allow read, write: if tekYetkiliKullanici(); }
+
+    // Diğer her şey kapalı.
+    match /{document=**}        { allow read, write: if false; }
+  }
+}

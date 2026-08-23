@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
+import '../../data/repository/ortak_repository.dart';
 import '../../domain/model/ortak.dart';
 import '../ortak_detay/ortak_detay_ekrani.dart';
 import 'arama_provider.dart';
@@ -17,13 +18,19 @@ import 'widget/ortak_kart.dart';
 /// ★ Responsive (PLAN.md §14): ≥900px'te ana-detay yan yana (arama solda,
 /// seçili ortak sağda). Dar ekranda tam-ekran liste, seçince ayrı sayfaya
 /// gidilir.
-class AramaEkrani extends StatelessWidget {
+class AramaEkrani extends ConsumerWidget {
   const AramaEkrani({super.key});
 
   static const double _genisEkranEsigi = 900;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ★ Uygulama açılışında bir kerelik Firestore senkronu tetikler
+    // (bulut yapılandırılmamışsa no-op — PLAN.md §2.5). Sonuç bilerek
+    // yok sayılıyor: senkron arka planda beklenmeden ilerler, arama
+    // ekranı zaten yerel Drift üzerinden çalışıyor.
+    ref.watch(baslangicSenkronuProvider);
+
     final bool genisEkran = MediaQuery.sizeOf(context).width >= _genisEkranEsigi;
 
     return Scaffold(

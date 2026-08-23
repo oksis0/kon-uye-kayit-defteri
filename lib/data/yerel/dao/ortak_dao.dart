@@ -54,6 +54,11 @@ class OrtakDao extends DatabaseAccessor<AppVeritabani> with _$OrtakDaoMixin {
 
   Future<int> ekle(OrtaklarCompanion satir) => into(ortaklar).insert(satir);
 
+  /// Firestore'dan pull edilen kayıtlar için — yerelde zaten varsa
+  /// üzerine yazar, yoksa ekler (PLAN.md §2.5, delta senkron).
+  Future<void> upsert(OrtaklarCompanion satir) =>
+      into(ortaklar).insertOnConflictUpdate(satir);
+
   Future<bool> guncelle(OrtaklarCompanion satir) =>
       update(ortaklar).replace(satir);
 

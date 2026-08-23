@@ -93,6 +93,8 @@ class _OrtakDetayIcerik extends ConsumerWidget {
                 }
               }
 
+              Future<void> satirSil(String id) => repo.satirSil(id, ortak.id);
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -100,14 +102,14 @@ class _OrtakDetayIcerik extends ConsumerWidget {
                     tur: SatirTuru.sermaye,
                     satirlar: sermaye,
                     onSatirKaydet: satirKaydet,
-                    onSatirSil: repo.satirSil,
+                    onSatirSil: satirSil,
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   DefterTablosu(
                     tur: SatirTuru.odeme,
                     satirlar: odeme,
                     onSatirKaydet: satirKaydet,
-                    onSatirSil: repo.satirSil,
+                    onSatirSil: satirSil,
                   ),
                 ],
               );

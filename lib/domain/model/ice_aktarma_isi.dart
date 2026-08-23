@@ -26,6 +26,9 @@ abstract class IceAktarmaIsi with _$IceAktarmaIsi {
     /// Azure'un ham cevabı. Uygulama inceleme formundayken çökerse, açılışta
     /// OCR'ı tekrarlamadan (kota israfı olmadan) forma dönebilmek için.
     String? ocrHamJson,
+
+    /// `ocrYapiliyor` durumundayken hangi Azure işleminin sorgulanacağı.
+    String? azureOperationId,
     required DateTime eklenmeTarihi,
   }) = _IceAktarmaIsi;
 }

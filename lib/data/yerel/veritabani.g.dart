@@ -2181,6 +2181,17 @@ class $IceAktarmaKuyruguTable extends IceAktarmaKuyrugu
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _azureOperationIdMeta = const VerificationMeta(
+    'azureOperationId',
+  );
+  @override
+  late final GeneratedColumn<String> azureOperationId = GeneratedColumn<String>(
+    'azure_operation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _eklenmeTarihiMeta = const VerificationMeta(
     'eklenmeTarihi',
   );
@@ -2205,6 +2216,7 @@ class $IceAktarmaKuyruguTable extends IceAktarmaKuyrugu
     denemeSayisi,
     olusanOrtakId,
     ocrHamJson,
+    azureOperationId,
     eklenmeTarihi,
   ];
   @override
@@ -2287,6 +2299,15 @@ class $IceAktarmaKuyruguTable extends IceAktarmaKuyrugu
         ),
       );
     }
+    if (data.containsKey('azure_operation_id')) {
+      context.handle(
+        _azureOperationIdMeta,
+        azureOperationId.isAcceptableOrUnknown(
+          data['azure_operation_id']!,
+          _azureOperationIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('eklenme_tarihi')) {
       context.handle(
         _eklenmeTarihiMeta,
@@ -2349,6 +2370,10 @@ class $IceAktarmaKuyruguTable extends IceAktarmaKuyrugu
         DriftSqlType.string,
         data['${effectivePrefix}ocr_ham_json'],
       ),
+      azureOperationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}azure_operation_id'],
+      ),
       eklenmeTarihi: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}eklenme_tarihi'],
@@ -2381,6 +2406,10 @@ class IceAktarmaIsiSatiri extends DataClass
   final int denemeSayisi;
   final String? olusanOrtakId;
   final String? ocrHamJson;
+
+  /// Azure'un asenkron analiz işlemi kimliği — `ocrYapiliyor` durumundayken
+  /// hangi işlemin sonucunun sorgulanacağını bilmek için (PLAN.md §2.3).
+  final String? azureOperationId;
   final DateTime eklenmeTarihi;
   const IceAktarmaIsiSatiri({
     required this.id,
@@ -2393,6 +2422,7 @@ class IceAktarmaIsiSatiri extends DataClass
     required this.denemeSayisi,
     this.olusanOrtakId,
     this.ocrHamJson,
+    this.azureOperationId,
     required this.eklenmeTarihi,
   });
   @override
@@ -2418,6 +2448,9 @@ class IceAktarmaIsiSatiri extends DataClass
     if (!nullToAbsent || ocrHamJson != null) {
       map['ocr_ham_json'] = Variable<String>(ocrHamJson);
     }
+    if (!nullToAbsent || azureOperationId != null) {
+      map['azure_operation_id'] = Variable<String>(azureOperationId);
+    }
     map['eklenme_tarihi'] = Variable<DateTime>(eklenmeTarihi);
     return map;
   }
@@ -2440,6 +2473,9 @@ class IceAktarmaIsiSatiri extends DataClass
       ocrHamJson: ocrHamJson == null && nullToAbsent
           ? const Value.absent()
           : Value(ocrHamJson),
+      azureOperationId: azureOperationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(azureOperationId),
       eklenmeTarihi: Value(eklenmeTarihi),
     );
   }
@@ -2462,6 +2498,7 @@ class IceAktarmaIsiSatiri extends DataClass
       denemeSayisi: serializer.fromJson<int>(json['denemeSayisi']),
       olusanOrtakId: serializer.fromJson<String?>(json['olusanOrtakId']),
       ocrHamJson: serializer.fromJson<String?>(json['ocrHamJson']),
+      azureOperationId: serializer.fromJson<String?>(json['azureOperationId']),
       eklenmeTarihi: serializer.fromJson<DateTime>(json['eklenmeTarihi']),
     );
   }
@@ -2481,6 +2518,7 @@ class IceAktarmaIsiSatiri extends DataClass
       'denemeSayisi': serializer.toJson<int>(denemeSayisi),
       'olusanOrtakId': serializer.toJson<String?>(olusanOrtakId),
       'ocrHamJson': serializer.toJson<String?>(ocrHamJson),
+      'azureOperationId': serializer.toJson<String?>(azureOperationId),
       'eklenmeTarihi': serializer.toJson<DateTime>(eklenmeTarihi),
     };
   }
@@ -2496,6 +2534,7 @@ class IceAktarmaIsiSatiri extends DataClass
     int? denemeSayisi,
     Value<String?> olusanOrtakId = const Value.absent(),
     Value<String?> ocrHamJson = const Value.absent(),
+    Value<String?> azureOperationId = const Value.absent(),
     DateTime? eklenmeTarihi,
   }) => IceAktarmaIsiSatiri(
     id: id ?? this.id,
@@ -2510,6 +2549,9 @@ class IceAktarmaIsiSatiri extends DataClass
         ? olusanOrtakId.value
         : this.olusanOrtakId,
     ocrHamJson: ocrHamJson.present ? ocrHamJson.value : this.ocrHamJson,
+    azureOperationId: azureOperationId.present
+        ? azureOperationId.value
+        : this.azureOperationId,
     eklenmeTarihi: eklenmeTarihi ?? this.eklenmeTarihi,
   );
   IceAktarmaIsiSatiri copyWithCompanion(IceAktarmaKuyruguCompanion data) {
@@ -2532,6 +2574,9 @@ class IceAktarmaIsiSatiri extends DataClass
       ocrHamJson: data.ocrHamJson.present
           ? data.ocrHamJson.value
           : this.ocrHamJson,
+      azureOperationId: data.azureOperationId.present
+          ? data.azureOperationId.value
+          : this.azureOperationId,
       eklenmeTarihi: data.eklenmeTarihi.present
           ? data.eklenmeTarihi.value
           : this.eklenmeTarihi,
@@ -2551,6 +2596,7 @@ class IceAktarmaIsiSatiri extends DataClass
           ..write('denemeSayisi: $denemeSayisi, ')
           ..write('olusanOrtakId: $olusanOrtakId, ')
           ..write('ocrHamJson: $ocrHamJson, ')
+          ..write('azureOperationId: $azureOperationId, ')
           ..write('eklenmeTarihi: $eklenmeTarihi')
           ..write(')'))
         .toString();
@@ -2568,6 +2614,7 @@ class IceAktarmaIsiSatiri extends DataClass
     denemeSayisi,
     olusanOrtakId,
     ocrHamJson,
+    azureOperationId,
     eklenmeTarihi,
   );
   @override
@@ -2584,6 +2631,7 @@ class IceAktarmaIsiSatiri extends DataClass
           other.denemeSayisi == this.denemeSayisi &&
           other.olusanOrtakId == this.olusanOrtakId &&
           other.ocrHamJson == this.ocrHamJson &&
+          other.azureOperationId == this.azureOperationId &&
           other.eklenmeTarihi == this.eklenmeTarihi);
 }
 
@@ -2598,6 +2646,7 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
   final Value<int> denemeSayisi;
   final Value<String?> olusanOrtakId;
   final Value<String?> ocrHamJson;
+  final Value<String?> azureOperationId;
   final Value<DateTime> eklenmeTarihi;
   final Value<int> rowid;
   const IceAktarmaKuyruguCompanion({
@@ -2611,6 +2660,7 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
     this.denemeSayisi = const Value.absent(),
     this.olusanOrtakId = const Value.absent(),
     this.ocrHamJson = const Value.absent(),
+    this.azureOperationId = const Value.absent(),
     this.eklenmeTarihi = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -2625,6 +2675,7 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
     this.denemeSayisi = const Value.absent(),
     this.olusanOrtakId = const Value.absent(),
     this.ocrHamJson = const Value.absent(),
+    this.azureOperationId = const Value.absent(),
     required DateTime eklenmeTarihi,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -2643,6 +2694,7 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
     Expression<int>? denemeSayisi,
     Expression<String>? olusanOrtakId,
     Expression<String>? ocrHamJson,
+    Expression<String>? azureOperationId,
     Expression<DateTime>? eklenmeTarihi,
     Expression<int>? rowid,
   }) {
@@ -2657,6 +2709,7 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
       if (denemeSayisi != null) 'deneme_sayisi': denemeSayisi,
       if (olusanOrtakId != null) 'olusan_ortak_id': olusanOrtakId,
       if (ocrHamJson != null) 'ocr_ham_json': ocrHamJson,
+      if (azureOperationId != null) 'azure_operation_id': azureOperationId,
       if (eklenmeTarihi != null) 'eklenme_tarihi': eklenmeTarihi,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2673,6 +2726,7 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
     Value<int>? denemeSayisi,
     Value<String?>? olusanOrtakId,
     Value<String?>? ocrHamJson,
+    Value<String?>? azureOperationId,
     Value<DateTime>? eklenmeTarihi,
     Value<int>? rowid,
   }) {
@@ -2687,6 +2741,7 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
       denemeSayisi: denemeSayisi ?? this.denemeSayisi,
       olusanOrtakId: olusanOrtakId ?? this.olusanOrtakId,
       ocrHamJson: ocrHamJson ?? this.ocrHamJson,
+      azureOperationId: azureOperationId ?? this.azureOperationId,
       eklenmeTarihi: eklenmeTarihi ?? this.eklenmeTarihi,
       rowid: rowid ?? this.rowid,
     );
@@ -2727,6 +2782,9 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
     if (ocrHamJson.present) {
       map['ocr_ham_json'] = Variable<String>(ocrHamJson.value);
     }
+    if (azureOperationId.present) {
+      map['azure_operation_id'] = Variable<String>(azureOperationId.value);
+    }
     if (eklenmeTarihi.present) {
       map['eklenme_tarihi'] = Variable<DateTime>(eklenmeTarihi.value);
     }
@@ -2749,7 +2807,222 @@ class IceAktarmaKuyruguCompanion extends UpdateCompanion<IceAktarmaIsiSatiri> {
           ..write('denemeSayisi: $denemeSayisi, ')
           ..write('olusanOrtakId: $olusanOrtakId, ')
           ..write('ocrHamJson: $ocrHamJson, ')
+          ..write('azureOperationId: $azureOperationId, ')
           ..write('eklenmeTarihi: $eklenmeTarihi, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $UygulamaMetaTable extends UygulamaMeta
+    with TableInfo<$UygulamaMetaTable, UygulamaMetaSatiri> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UygulamaMetaTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _anahtarMeta = const VerificationMeta(
+    'anahtar',
+  );
+  @override
+  late final GeneratedColumn<String> anahtar = GeneratedColumn<String>(
+    'anahtar',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _degerMeta = const VerificationMeta('deger');
+  @override
+  late final GeneratedColumn<String> deger = GeneratedColumn<String>(
+    'deger',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [anahtar, deger];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'uygulama_meta';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UygulamaMetaSatiri> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('anahtar')) {
+      context.handle(
+        _anahtarMeta,
+        anahtar.isAcceptableOrUnknown(data['anahtar']!, _anahtarMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_anahtarMeta);
+    }
+    if (data.containsKey('deger')) {
+      context.handle(
+        _degerMeta,
+        deger.isAcceptableOrUnknown(data['deger']!, _degerMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_degerMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {anahtar};
+  @override
+  UygulamaMetaSatiri map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UygulamaMetaSatiri(
+      anahtar: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anahtar'],
+      )!,
+      deger: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deger'],
+      )!,
+    );
+  }
+
+  @override
+  $UygulamaMetaTable createAlias(String alias) {
+    return $UygulamaMetaTable(attachedDatabase, alias);
+  }
+}
+
+class UygulamaMetaSatiri extends DataClass
+    implements Insertable<UygulamaMetaSatiri> {
+  final String anahtar;
+  final String deger;
+  const UygulamaMetaSatiri({required this.anahtar, required this.deger});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['anahtar'] = Variable<String>(anahtar);
+    map['deger'] = Variable<String>(deger);
+    return map;
+  }
+
+  UygulamaMetaCompanion toCompanion(bool nullToAbsent) {
+    return UygulamaMetaCompanion(anahtar: Value(anahtar), deger: Value(deger));
+  }
+
+  factory UygulamaMetaSatiri.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UygulamaMetaSatiri(
+      anahtar: serializer.fromJson<String>(json['anahtar']),
+      deger: serializer.fromJson<String>(json['deger']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'anahtar': serializer.toJson<String>(anahtar),
+      'deger': serializer.toJson<String>(deger),
+    };
+  }
+
+  UygulamaMetaSatiri copyWith({String? anahtar, String? deger}) =>
+      UygulamaMetaSatiri(
+        anahtar: anahtar ?? this.anahtar,
+        deger: deger ?? this.deger,
+      );
+  UygulamaMetaSatiri copyWithCompanion(UygulamaMetaCompanion data) {
+    return UygulamaMetaSatiri(
+      anahtar: data.anahtar.present ? data.anahtar.value : this.anahtar,
+      deger: data.deger.present ? data.deger.value : this.deger,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UygulamaMetaSatiri(')
+          ..write('anahtar: $anahtar, ')
+          ..write('deger: $deger')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(anahtar, deger);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UygulamaMetaSatiri &&
+          other.anahtar == this.anahtar &&
+          other.deger == this.deger);
+}
+
+class UygulamaMetaCompanion extends UpdateCompanion<UygulamaMetaSatiri> {
+  final Value<String> anahtar;
+  final Value<String> deger;
+  final Value<int> rowid;
+  const UygulamaMetaCompanion({
+    this.anahtar = const Value.absent(),
+    this.deger = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UygulamaMetaCompanion.insert({
+    required String anahtar,
+    required String deger,
+    this.rowid = const Value.absent(),
+  }) : anahtar = Value(anahtar),
+       deger = Value(deger);
+  static Insertable<UygulamaMetaSatiri> custom({
+    Expression<String>? anahtar,
+    Expression<String>? deger,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (anahtar != null) 'anahtar': anahtar,
+      if (deger != null) 'deger': deger,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UygulamaMetaCompanion copyWith({
+    Value<String>? anahtar,
+    Value<String>? deger,
+    Value<int>? rowid,
+  }) {
+    return UygulamaMetaCompanion(
+      anahtar: anahtar ?? this.anahtar,
+      deger: deger ?? this.deger,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (anahtar.present) {
+      map['anahtar'] = Variable<String>(anahtar.value);
+    }
+    if (deger.present) {
+      map['deger'] = Variable<String>(deger.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UygulamaMetaCompanion(')
+          ..write('anahtar: $anahtar, ')
+          ..write('deger: $deger, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2765,11 +3038,13 @@ abstract class _$AppVeritabani extends GeneratedDatabase {
   );
   late final $IceAktarmaKuyruguTable iceAktarmaKuyrugu =
       $IceAktarmaKuyruguTable(this);
+  late final $UygulamaMetaTable uygulamaMeta = $UygulamaMetaTable(this);
   late final OrtakDao ortakDao = OrtakDao(this as AppVeritabani);
   late final DefterSatiriDao defterSatiriDao = DefterSatiriDao(
     this as AppVeritabani,
   );
   late final KuyrukDao kuyrukDao = KuyrukDao(this as AppVeritabani);
+  late final MetaDao metaDao = MetaDao(this as AppVeritabani);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2778,6 +3053,7 @@ abstract class _$AppVeritabani extends GeneratedDatabase {
     ortaklar,
     defterSatirlari,
     iceAktarmaKuyrugu,
+    uygulamaMeta,
   ];
 }
 
@@ -3947,6 +4223,7 @@ typedef $$IceAktarmaKuyruguTableCreateCompanionBuilder =
       Value<int> denemeSayisi,
       Value<String?> olusanOrtakId,
       Value<String?> ocrHamJson,
+      Value<String?> azureOperationId,
       required DateTime eklenmeTarihi,
       Value<int> rowid,
     });
@@ -3962,6 +4239,7 @@ typedef $$IceAktarmaKuyruguTableUpdateCompanionBuilder =
       Value<int> denemeSayisi,
       Value<String?> olusanOrtakId,
       Value<String?> ocrHamJson,
+      Value<String?> azureOperationId,
       Value<DateTime> eklenmeTarihi,
       Value<int> rowid,
     });
@@ -4023,6 +4301,11 @@ class $$IceAktarmaKuyruguTableFilterComposer
 
   ColumnFilters<String> get ocrHamJson => $composableBuilder(
     column: $table.ocrHamJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get azureOperationId => $composableBuilder(
+    column: $table.azureOperationId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4091,6 +4374,11 @@ class $$IceAktarmaKuyruguTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get azureOperationId => $composableBuilder(
+    column: $table.azureOperationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get eklenmeTarihi => $composableBuilder(
     column: $table.eklenmeTarihi,
     builder: (column) => ColumnOrderings(column),
@@ -4141,6 +4429,11 @@ class $$IceAktarmaKuyruguTableAnnotationComposer
 
   GeneratedColumn<String> get ocrHamJson => $composableBuilder(
     column: $table.ocrHamJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get azureOperationId => $composableBuilder(
+    column: $table.azureOperationId,
     builder: (column) => column,
   );
 
@@ -4200,6 +4493,7 @@ class $$IceAktarmaKuyruguTableTableManager
                 Value<int> denemeSayisi = const Value.absent(),
                 Value<String?> olusanOrtakId = const Value.absent(),
                 Value<String?> ocrHamJson = const Value.absent(),
+                Value<String?> azureOperationId = const Value.absent(),
                 Value<DateTime> eklenmeTarihi = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => IceAktarmaKuyruguCompanion(
@@ -4213,6 +4507,7 @@ class $$IceAktarmaKuyruguTableTableManager
                 denemeSayisi: denemeSayisi,
                 olusanOrtakId: olusanOrtakId,
                 ocrHamJson: ocrHamJson,
+                azureOperationId: azureOperationId,
                 eklenmeTarihi: eklenmeTarihi,
                 rowid: rowid,
               ),
@@ -4228,6 +4523,7 @@ class $$IceAktarmaKuyruguTableTableManager
                 Value<int> denemeSayisi = const Value.absent(),
                 Value<String?> olusanOrtakId = const Value.absent(),
                 Value<String?> ocrHamJson = const Value.absent(),
+                Value<String?> azureOperationId = const Value.absent(),
                 required DateTime eklenmeTarihi,
                 Value<int> rowid = const Value.absent(),
               }) => IceAktarmaKuyruguCompanion.insert(
@@ -4241,6 +4537,7 @@ class $$IceAktarmaKuyruguTableTableManager
                 denemeSayisi: denemeSayisi,
                 olusanOrtakId: olusanOrtakId,
                 ocrHamJson: ocrHamJson,
+                azureOperationId: azureOperationId,
                 eklenmeTarihi: eklenmeTarihi,
                 rowid: rowid,
               ),
@@ -4273,6 +4570,153 @@ typedef $$IceAktarmaKuyruguTableProcessedTableManager =
       IceAktarmaIsiSatiri,
       PrefetchHooks Function()
     >;
+typedef $$UygulamaMetaTableCreateCompanionBuilder =
+    UygulamaMetaCompanion Function({
+      required String anahtar,
+      required String deger,
+      Value<int> rowid,
+    });
+typedef $$UygulamaMetaTableUpdateCompanionBuilder =
+    UygulamaMetaCompanion Function({
+      Value<String> anahtar,
+      Value<String> deger,
+      Value<int> rowid,
+    });
+
+class $$UygulamaMetaTableFilterComposer
+    extends Composer<_$AppVeritabani, $UygulamaMetaTable> {
+  $$UygulamaMetaTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get anahtar => $composableBuilder(
+    column: $table.anahtar,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deger => $composableBuilder(
+    column: $table.deger,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$UygulamaMetaTableOrderingComposer
+    extends Composer<_$AppVeritabani, $UygulamaMetaTable> {
+  $$UygulamaMetaTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get anahtar => $composableBuilder(
+    column: $table.anahtar,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deger => $composableBuilder(
+    column: $table.deger,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$UygulamaMetaTableAnnotationComposer
+    extends Composer<_$AppVeritabani, $UygulamaMetaTable> {
+  $$UygulamaMetaTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get anahtar =>
+      $composableBuilder(column: $table.anahtar, builder: (column) => column);
+
+  GeneratedColumn<String> get deger =>
+      $composableBuilder(column: $table.deger, builder: (column) => column);
+}
+
+class $$UygulamaMetaTableTableManager
+    extends
+        RootTableManager<
+          _$AppVeritabani,
+          $UygulamaMetaTable,
+          UygulamaMetaSatiri,
+          $$UygulamaMetaTableFilterComposer,
+          $$UygulamaMetaTableOrderingComposer,
+          $$UygulamaMetaTableAnnotationComposer,
+          $$UygulamaMetaTableCreateCompanionBuilder,
+          $$UygulamaMetaTableUpdateCompanionBuilder,
+          (
+            UygulamaMetaSatiri,
+            BaseReferences<
+              _$AppVeritabani,
+              $UygulamaMetaTable,
+              UygulamaMetaSatiri
+            >,
+          ),
+          UygulamaMetaSatiri,
+          PrefetchHooks Function()
+        > {
+  $$UygulamaMetaTableTableManager(_$AppVeritabani db, $UygulamaMetaTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UygulamaMetaTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UygulamaMetaTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UygulamaMetaTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> anahtar = const Value.absent(),
+                Value<String> deger = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UygulamaMetaCompanion(
+                anahtar: anahtar,
+                deger: deger,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String anahtar,
+                required String deger,
+                Value<int> rowid = const Value.absent(),
+              }) => UygulamaMetaCompanion.insert(
+                anahtar: anahtar,
+                deger: deger,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$UygulamaMetaTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppVeritabani,
+      $UygulamaMetaTable,
+      UygulamaMetaSatiri,
+      $$UygulamaMetaTableFilterComposer,
+      $$UygulamaMetaTableOrderingComposer,
+      $$UygulamaMetaTableAnnotationComposer,
+      $$UygulamaMetaTableCreateCompanionBuilder,
+      $$UygulamaMetaTableUpdateCompanionBuilder,
+      (
+        UygulamaMetaSatiri,
+        BaseReferences<_$AppVeritabani, $UygulamaMetaTable, UygulamaMetaSatiri>,
+      ),
+      UygulamaMetaSatiri,
+      PrefetchHooks Function()
+    >;
 
 class $AppVeritabaniManager {
   final _$AppVeritabani _db;
@@ -4283,4 +4727,6 @@ class $AppVeritabaniManager {
       $$DefterSatirlariTableTableManager(_db, _db.defterSatirlari);
   $$IceAktarmaKuyruguTableTableManager get iceAktarmaKuyrugu =>
       $$IceAktarmaKuyruguTableTableManager(_db, _db.iceAktarmaKuyrugu);
+  $$UygulamaMetaTableTableManager get uygulamaMeta =>
+      $$UygulamaMetaTableTableManager(_db, _db.uygulamaMeta);
 }

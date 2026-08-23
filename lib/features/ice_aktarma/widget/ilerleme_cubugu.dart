@@ -53,6 +53,23 @@ class IlerlemeCubugu extends StatelessWidget {
               style: AppTypography.caption.copyWith(color: renkler.textSecondary),
             ),
           ],
+          if (durum.ocrBekleyenSayisi > 0) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: <Widget>[
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: renkler.accent),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  '${durum.ocrBekleyenSayisi} belge için Azure OCR sonucu bekleniyor...',
+                  style: AppTypography.caption.copyWith(color: renkler.textSecondary),
+                ),
+              ],
+            ),
+          ],
           if (durum.sonHata != null) ...<Widget>[
             const SizedBox(height: AppSpacing.sm),
             Text(

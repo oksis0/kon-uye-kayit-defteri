@@ -1,10 +1,16 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
 import 'package:drift/drift.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/config/env.dart';
 import '../../core/util/turkce_normalize.dart';
 import '../../domain/model/defter_satiri.dart';
 import '../../domain/model/ortak.dart';
+import '../uzak/firestore_servisi.dart';
+import '../yerel/dao/meta_dao.dart';
 import '../yerel/veritabani.dart';
 import '../yerel/veritabani_provider.dart';
 
@@ -15,13 +21,21 @@ const Uuid _uuid = Uuid();
 /// UI'nin ortaklar üzerindeki **tek** veri kapısı — Drift'i doğrudan
 /// hiçbir ekran bilmez (PLAN.md §3, katman kuralı).
 ///
-/// ★ Firestore senkronu henüz yok (Faz 4'te eklenecek). Bu bilinçli:
-/// Faz 1'de veritabanı, arama ve arayüz sağlam otururken ağ hataları işin
-/// içine karışmasın (PLAN.md §15, Faz 1).
+/// ★ Firestore senkronu **koşullu**: [_firestore] `null` ise (bulut
+/// yapılandırılmamışsa) tüm yazma/okuma tamamen yerel — Faz 1-2 davranışı
+/// birebir korunur. Dolu ise her yazma sonrası arka planda (beklenmeden)
+/// Firestore'a itilir; ağ hatası olursa kayıt yerelde zaten güvende olduğu
+/// için kullanıcı akışı hiç kesilmez (PLAN.md §2.5, yerel-öncelikli mimari).
+///
+/// ★ Bilinen basitleştirme: alan-bazlı çakışma çözümü YOK — tüm kayıt
+/// `guncellemeTarihi`'ye göre "son yazan kazanır" ile değiştirilir
+/// (PLAN.md §15 Faz 4 notu). 2 kişilik ekip ölçeğinde bu yeterli; başarısız
+/// push'lar için otomatik yeniden deneme kuyruğu da yok (ileride eklenebilir).
 class OrtakRepository {
-  OrtakRepository(this._db);
+  OrtakRepository(this._db, this._firestore);
 
   final AppVeritabani _db;
+  final FirestoreServisi? _firestore;
 
   Stream<List<Ortak>> ara(String sorgu, {bool pasifleriDeGoster = false}) {
     final String normalize = turkceNormalize(sorgu);
@@ -73,6 +87,7 @@ class OrtakRepository {
     );
 
     await _db.ortakDao.ekle(_companionaDonustur(yeniOrtak));
+    _firestoreyeItGorunmeden(id);
     return yeniOrtak;
   }
 
@@ -82,27 +97,102 @@ class OrtakRepository {
       guncellemeTarihi: DateTime.now(),
     );
     await _db.ortakDao.guncelle(_companionaDonustur(guncelOrtak));
+    _firestoreyeItGorunmeden(guncelOrtak.id);
     return guncelOrtak;
   }
 
   /// Soft delete (PLAN.md §10.1) — kalıcı silme Faz 7'de eklenecek.
-  Future<void> pasifYap(String id, String neden) {
-    return _db.ortakDao.pasifYap(id, neden);
+  Future<void> pasifYap(String id, String neden) async {
+    await _db.ortakDao.pasifYap(id, neden);
+    _firestoreyeItGorunmeden(id);
   }
 
   Future<DefterSatiri> satirEkle(DefterSatiri satir) async {
     final String id = satir.id.isEmpty ? _uuid.v4() : satir.id;
     final DefterSatiri yeniSatir = satir.copyWith(id: id);
     await _db.defterSatiriDao.ekle(_satirCompanionaDonustur(yeniSatir));
+    _firestoreyeItGorunmeden(yeniSatir.ortakId);
     return yeniSatir;
   }
 
-  Future<void> satirGuncelle(DefterSatiri satir) {
-    return _db.defterSatiriDao.guncelle(_satirCompanionaDonustur(satir));
+  Future<void> satirGuncelle(DefterSatiri satir) async {
+    await _db.defterSatiriDao.guncelle(_satirCompanionaDonustur(satir));
+    _firestoreyeItGorunmeden(satir.ortakId);
   }
 
-  Future<void> satirSil(String id) {
-    return _db.defterSatiriDao.sil(id);
+  Future<void> satirSil(String id, String ortakId) async {
+    await _db.defterSatiriDao.sil(id);
+    _firestoreyeItGorunmeden(ortakId);
+  }
+
+  /// Ortağı (kimlik + tüm satırları) Firestore'a gömülü doküman olarak
+  /// yazar — beklenmeden (fire-and-forget). Ağ hatası olursa sessizce
+  /// loglanır; yerel kayıt zaten güvende olduğu için kullanıcı akışı
+  /// kesilmez (PLAN.md §2.5). Bulut yapılandırılmamışsa hiçbir şey yapmaz.
+  void _firestoreyeItGorunmeden(String ortakId) {
+    final FirestoreServisi? firestore = _firestore;
+    if (firestore == null) return;
+
+    unawaited(() async {
+      try {
+        final OrtakSatiri? satir = await _db.ortakDao.idIleBul(ortakId);
+        if (satir == null) return;
+        final Ortak ortak = _ortagaDonustur(satir);
+        final List<DefterSatiriSatiri> satirlar =
+            await _db.defterSatiriDao.ortaginSatirlariniIzle(ortakId).first;
+        await firestore.ortakYaz(ortak, satirlar.map(_satiraDonustur).toList());
+      } catch (e, s) {
+        developer.log(
+          'Firestore senkron başarısız (kayıt yerelde güvende)',
+          name: 'OrtakRepository',
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }());
+  }
+
+  /// Firestore'dan bu cihaza son senkrondan sonraki değişiklikleri çeker
+  /// ve yerel Drift'e uygular (delta senkron — PLAN.md §2.5).
+  ///
+  /// Çakışma çözümü: gelen kayıt yerelden daha YENİYSE uygulanır ("son
+  /// yazan kazanır", `guncellemeTarihi` karşılaştırmalı). Satırlar için
+  /// tam-liste-değiştirme stratejisi kullanılır (PLAN.md §15 Faz 4 notu).
+  Future<int> firestoretenSenkronizeEt() async {
+    final FirestoreServisi? firestore = _firestore;
+    if (firestore == null) return 0;
+
+    final String? sonSenkronMetin = await _db.metaDao.degerAl(anahtarSonSenkron);
+    final DateTime sonSenkron = sonSenkronMetin != null
+        ? DateTime.parse(sonSenkronMetin)
+        : DateTime.fromMillisecondsSinceEpoch(0);
+
+    final List<(Ortak, List<DefterSatiri>)> degisenler =
+        await firestore.degisiklikleriGetir(sonSenkron);
+
+    int uygulanan = 0;
+    DateTime enYeniGuncelleme = sonSenkron;
+
+    for (final (Ortak uzakOrtak, List<DefterSatiri> uzakSatirlar) in degisenler) {
+      if (uzakOrtak.guncellemeTarihi.isAfter(enYeniGuncelleme)) {
+        enYeniGuncelleme = uzakOrtak.guncellemeTarihi;
+      }
+
+      final OrtakSatiri? yerelSatir = await _db.ortakDao.idIleBul(uzakOrtak.id);
+      final bool yereldenYeni =
+          yerelSatir == null || uzakOrtak.guncellemeTarihi.isAfter(yerelSatir.guncellemeTarihi);
+      if (!yereldenYeni) continue;
+
+      await _db.ortakDao.upsert(_companionaDonustur(uzakOrtak));
+      await _db.defterSatiriDao.ortaginTumSatirlariniSil(uzakOrtak.id);
+      for (final DefterSatiri satir in uzakSatirlar) {
+        await _db.defterSatiriDao.ekle(_satirCompanionaDonustur(satir));
+      }
+      uygulanan++;
+    }
+
+    await _db.metaDao.degerYaz(anahtarSonSenkron, enYeniGuncelleme.toIso8601String());
+    return uygulanan;
   }
 
   String _aramaAnahtariHesapla(Ortak ortak) => aramaAnahtariUret(<String?>[
@@ -199,5 +289,19 @@ class OrtakRepository {
 @Riverpod(keepAlive: true)
 OrtakRepository ortakRepository(Ref ref) {
   final AppVeritabani db = ref.watch(veritabaniProvider);
-  return OrtakRepository(db);
+  // ★ FirestoreServisi sadece bulut yapılandırılmışsa okunuyor — aksi halde
+  // `FirebaseFirestore.instance` Firebase hiç başlatılmadan çağrılıp hata
+  // fırlatırdı (PLAN.md §12.5).
+  final FirestoreServisi? firestore =
+      Env.bulutYapilandirmasiTamam ? ref.watch(firestoreServisiProvider) : null;
+  return OrtakRepository(db, firestore);
+}
+
+/// Uygulama açılışında BİR KEZ çalışır (app.dart'ta `ref.watch` edilir,
+/// `keepAlive` sayesinde tekrar tetiklenmez). Bulut yapılandırılmamışsa
+/// hiçbir şey yapmaz.
+@Riverpod(keepAlive: true)
+Future<void> baslangicSenkronu(Ref ref) async {
+  if (!Env.bulutYapilandirmasiTamam) return;
+  await ref.watch(ortakRepositoryProvider).firestoretenSenkronizeEt();
 }

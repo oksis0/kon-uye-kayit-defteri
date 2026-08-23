@@ -50,27 +50,45 @@ final class KuyrukListesiProvider
 
 String _$kuyrukListesiHash() => r'3a90656dab864279070a193e4f181678211d90d3';
 
-/// Klasör seçiminden görüntü hazırlama tamamlanana kadar olan akışı yönetir.
+/// Klasör seçiminden OCR sonucunun hazır olmasına kadar olan akışı yönetir.
 ///
-/// ★ Faz 2 kapsamı: sadece görüntü hazırlama (format/boyut). OCR YOK —
-/// Faz 3+'ta bu Notifier'a `ocrYapiliyor` adımı eklenecek, arayüz ve
-/// ilerleme mantığı değişmeyecek (PLAN.md §8).
+/// İki aşama:
+/// 1. **Hazırlama** (deterministik) — her dosya için format/boyut kontrolü,
+///    ardından bulut yapılandırılmışsa Azure OCR'ı BAŞLATIR (beklemez).
+/// 2. **OCR bekleme** (belirsiz süreli, sadece bulut yapılandırılmışsa) —
+///    `ocrYapiliyor` durumundaki işler 2 saniyede bir sorgulanır, sonuç
+///    gelince `onayBekliyor`'a geçer (PLAN.md §8).
+///
+/// Bulut yapılandırılmamışsa (env.json boş) 2. aşama hiç çalışmaz — her iş
+/// hazırlama sonrası doğrudan `onayBekliyor`'a geçer (Faz 1-2 elle akışı).
 
 @ProviderFor(KuyrukIsleyici)
 const kuyrukIsleyiciProvider = KuyrukIsleyiciProvider._();
 
-/// Klasör seçiminden görüntü hazırlama tamamlanana kadar olan akışı yönetir.
+/// Klasör seçiminden OCR sonucunun hazır olmasına kadar olan akışı yönetir.
 ///
-/// ★ Faz 2 kapsamı: sadece görüntü hazırlama (format/boyut). OCR YOK —
-/// Faz 3+'ta bu Notifier'a `ocrYapiliyor` adımı eklenecek, arayüz ve
-/// ilerleme mantığı değişmeyecek (PLAN.md §8).
+/// İki aşama:
+/// 1. **Hazırlama** (deterministik) — her dosya için format/boyut kontrolü,
+///    ardından bulut yapılandırılmışsa Azure OCR'ı BAŞLATIR (beklemez).
+/// 2. **OCR bekleme** (belirsiz süreli, sadece bulut yapılandırılmışsa) —
+///    `ocrYapiliyor` durumundaki işler 2 saniyede bir sorgulanır, sonuç
+///    gelince `onayBekliyor`'a geçer (PLAN.md §8).
+///
+/// Bulut yapılandırılmamışsa (env.json boş) 2. aşama hiç çalışmaz — her iş
+/// hazırlama sonrası doğrudan `onayBekliyor`'a geçer (Faz 1-2 elle akışı).
 final class KuyrukIsleyiciProvider
     extends $NotifierProvider<KuyrukIsleyici, KuyrukIlerlemeDurumu> {
-  /// Klasör seçiminden görüntü hazırlama tamamlanana kadar olan akışı yönetir.
+  /// Klasör seçiminden OCR sonucunun hazır olmasına kadar olan akışı yönetir.
   ///
-  /// ★ Faz 2 kapsamı: sadece görüntü hazırlama (format/boyut). OCR YOK —
-  /// Faz 3+'ta bu Notifier'a `ocrYapiliyor` adımı eklenecek, arayüz ve
-  /// ilerleme mantığı değişmeyecek (PLAN.md §8).
+  /// İki aşama:
+  /// 1. **Hazırlama** (deterministik) — her dosya için format/boyut kontrolü,
+  ///    ardından bulut yapılandırılmışsa Azure OCR'ı BAŞLATIR (beklemez).
+  /// 2. **OCR bekleme** (belirsiz süreli, sadece bulut yapılandırılmışsa) —
+  ///    `ocrYapiliyor` durumundaki işler 2 saniyede bir sorgulanır, sonuç
+  ///    gelince `onayBekliyor`'a geçer (PLAN.md §8).
+  ///
+  /// Bulut yapılandırılmamışsa (env.json boş) 2. aşama hiç çalışmaz — her iş
+  /// hazırlama sonrası doğrudan `onayBekliyor`'a geçer (Faz 1-2 elle akışı).
   const KuyrukIsleyiciProvider._()
     : super(
         from: null,
@@ -98,13 +116,19 @@ final class KuyrukIsleyiciProvider
   }
 }
 
-String _$kuyrukIsleyiciHash() => r'eb54cc68cfe754090d7d448147579cdbb5c1e01f';
+String _$kuyrukIsleyiciHash() => r'f301663edccfed53c5f029dbfe6cbec3908bc125';
 
-/// Klasör seçiminden görüntü hazırlama tamamlanana kadar olan akışı yönetir.
+/// Klasör seçiminden OCR sonucunun hazır olmasına kadar olan akışı yönetir.
 ///
-/// ★ Faz 2 kapsamı: sadece görüntü hazırlama (format/boyut). OCR YOK —
-/// Faz 3+'ta bu Notifier'a `ocrYapiliyor` adımı eklenecek, arayüz ve
-/// ilerleme mantığı değişmeyecek (PLAN.md §8).
+/// İki aşama:
+/// 1. **Hazırlama** (deterministik) — her dosya için format/boyut kontrolü,
+///    ardından bulut yapılandırılmışsa Azure OCR'ı BAŞLATIR (beklemez).
+/// 2. **OCR bekleme** (belirsiz süreli, sadece bulut yapılandırılmışsa) —
+///    `ocrYapiliyor` durumundaki işler 2 saniyede bir sorgulanır, sonuç
+///    gelince `onayBekliyor`'a geçer (PLAN.md §8).
+///
+/// Bulut yapılandırılmamışsa (env.json boş) 2. aşama hiç çalışmaz — her iş
+/// hazırlama sonrası doğrudan `onayBekliyor`'a geçer (Faz 1-2 elle akışı).
 
 abstract class _$KuyrukIsleyici extends $Notifier<KuyrukIlerlemeDurumu> {
   KuyrukIlerlemeDurumu build();

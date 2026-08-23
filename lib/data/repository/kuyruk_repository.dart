@@ -10,6 +10,7 @@ import '../../domain/model/ice_aktarma_isi.dart';
 import '../goruntu/goruntu_hazirlayici.dart';
 import '../yerel/veritabani.dart';
 import '../yerel/veritabani_provider.dart';
+import 'ocr_repository.dart';
 
 part 'kuyruk_repository.g.dart';
 
@@ -18,12 +19,12 @@ const Set<String> _desteklenenUzantilar = <String>{'.jpg', '.jpeg', '.png'};
 
 /// Toplu içe aktarma kuyruğunu yönetir (PLAN.md §8).
 ///
-/// ★ Faz 2 kapsamı: **OCR YOK.** Kuyruk, taranmış dosyaları hazırlayıp
-/// (format/boyut) `onayBekliyor` durumuna getirir; kullanıcı formu elle
-/// doldurup ortağa bağlar. `onayBekliyor` durumu bilinçli olarak genel
-/// tutuldu — Faz 3+'ta Azure OCR devreye girdiğinde aynı durum, formu
-/// önceden doldurulmuş olarak karşılamak için kullanılacak. Mimari değişmez,
-/// sadece `ocrHamJson` dolu gelir.
+/// ★ OCR **koşullu**: bulut yapılandırılmışsa (`ocrRepo` verilmişse) görüntü
+/// hazırlama sonrası Azure OCR başlatılır; yapılandırılmamışsa (Faz 1-2'deki
+/// gibi, env.json boşsa) doğrudan `onayBekliyor`'a geçilir ve kullanıcı
+/// formu tamamen elle doldurur. `onayBekliyor` durumu her iki yolda da
+/// aynı — İnceleme ekranı `ocrHamJson` doluysa ön-doldurur, boşsa boş form
+/// gösterir. "İnsan yazar, OCR ön-doldurur" (PLAN.md §7.2).
 class KuyrukRepository {
   KuyrukRepository(this._db);
 
@@ -82,10 +83,12 @@ class KuyrukRepository {
     return KlasorTaramaSonucu(eklenen: eklenen, atlanan: atlanan);
   }
 
-  /// Bir işin görüntüsünü hazırlar (format/boyut kontrolü). Başarılıysa
-  /// `onayBekliyor`, hata olursa `hata` durumuna geçer (PLAN.md §8,
-  /// "Kritik davranışlar" tablosu).
-  Future<void> hazirla(String isId) async {
+  /// Bir işin görüntüsünü hazırlar (format/boyut kontrolü), ardından
+  /// [ocrRepo] verilmişse Azure OCR'ı BAŞLATIR (beklemez — durum
+  /// `ocrYapiliyor`'a geçer, sonucu [ocrDurumunuKontrolEt] alır).
+  /// [ocrRepo] `null` ise (bulut yapılandırılmamışsa) doğrudan
+  /// `onayBekliyor`'a geçer — Faz 2'deki elle akış (PLAN.md §8).
+  Future<void> hazirla(String isId, {OcrRepository? ocrRepo}) async {
     final IceAktarmaIsiSatiri? satir = await _db.kuyrukDao.idIleBul(isId);
     if (satir == null) return;
 
@@ -97,11 +100,24 @@ class KuyrukRepository {
     );
 
     try {
-      await _goruntuHazirlayici.hazirla(satir.dosyaYolu);
+      final HazirlanmisGorsel hazir = await _goruntuHazirlayici.hazirla(satir.dosyaYolu);
+
+      if (ocrRepo == null) {
+        await _db.kuyrukDao.guncelle(
+          IceAktarmaKuyruguCompanion(
+            id: Value(isId),
+            durum: const Value(KuyrukDurumu.onayBekliyor),
+          ),
+        );
+        return;
+      }
+
+      final String operationId = await ocrRepo.baslat(hazir.veriler);
       await _db.kuyrukDao.guncelle(
         IceAktarmaKuyruguCompanion(
           id: Value(isId),
-          durum: const Value(KuyrukDurumu.onayBekliyor),
+          durum: const Value(KuyrukDurumu.ocrYapiliyor),
+          azureOperationId: Value(operationId),
         ),
       );
     } catch (e) {
@@ -113,6 +129,38 @@ class KuyrukRepository {
           denemeSayisi: Value(satir.denemeSayisi + 1),
         ),
       );
+    }
+  }
+
+  /// `ocrYapiliyor` durumundaki bir işin Azure sonucunu tek seferlik
+  /// sorgular (bekleme döngüsü çağıran tarafta — PLAN.md §2.3). "Bekliyor"
+  /// yanıtında durum değişmez, bir sonraki pollde tekrar denenir.
+  Future<void> ocrDurumunuKontrolEt(String isId, OcrRepository ocrRepo) async {
+    final IceAktarmaIsiSatiri? satir = await _db.kuyrukDao.idIleBul(isId);
+    if (satir == null || satir.azureOperationId == null) return;
+
+    final OcrIslemSonucu sonuc = await ocrRepo.durumSorgula(satir.azureOperationId!);
+
+    switch (sonuc) {
+      case OcrIslemSonucuBekliyor():
+        return;
+      case OcrIslemSonucuBitti(:final String hamJson):
+        await _db.kuyrukDao.guncelle(
+          IceAktarmaKuyruguCompanion(
+            id: Value(isId),
+            durum: const Value(KuyrukDurumu.onayBekliyor),
+            ocrHamJson: Value(hamJson),
+          ),
+        );
+      case OcrIslemSonucuHata(:final String mesaj):
+        await _db.kuyrukDao.guncelle(
+          IceAktarmaKuyruguCompanion(
+            id: Value(isId),
+            durum: const Value(KuyrukDurumu.hata),
+            hataMesaji: Value(mesaj),
+            denemeSayisi: Value(satir.denemeSayisi + 1),
+          ),
+        );
     }
   }
 
@@ -161,6 +209,7 @@ class KuyrukRepository {
         denemeSayisi: satir.denemeSayisi,
         olusanOrtakId: satir.olusanOrtakId,
         ocrHamJson: satir.ocrHamJson,
+        azureOperationId: satir.azureOperationId,
         eklenmeTarihi: satir.eklenmeTarihi,
       );
 

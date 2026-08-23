@@ -1,9 +1,9 @@
-import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/util/para_bicim.dart';
 import '../../../domain/enum/satir_turu.dart';
 import '../../../domain/model/defter_satiri.dart';
 
@@ -24,14 +24,6 @@ class DefterTablosu extends StatelessWidget {
   final ValueChanged<DefterSatiri> onSatirKaydet;
   final ValueChanged<String> onSatirSil;
 
-  static final NumberFormat _paraFormat = NumberFormat.currency(
-    locale: 'tr_TR',
-    symbol: '₺',
-    decimalDigits: 2,
-  );
-
-  static String paraGoster(int kurus) => _paraFormat.format(kurus / 100);
-
   @override
   Widget build(BuildContext context) {
     final AppColors renkler = context.renkler;
@@ -41,7 +33,10 @@ class DefterTablosu extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            Text(tur.etiket, style: AppTypography.title.copyWith(color: renkler.textPrimary)),
+            Text(
+              tur.etiket,
+              style: AppTypography.title.copyWith(color: renkler.textPrimary),
+            ),
             const Spacer(),
             TextButton.icon(
               onPressed: () => _satirDialoguAc(context),
@@ -56,7 +51,9 @@ class DefterTablosu extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Text(
               'Henüz satır eklenmedi.',
-              style: AppTypography.caption.copyWith(color: renkler.textSecondary),
+              style: AppTypography.caption.copyWith(
+                color: renkler.textSecondary,
+              ),
             ),
           )
         else
@@ -68,7 +65,9 @@ class DefterTablosu extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: DataTable(
-                headingRowColor: WidgetStatePropertyAll<Color>(renkler.surfaceContainer),
+                headingRowColor: WidgetStatePropertyAll<Color>(
+                  renkler.surfaceContainer,
+                ),
                 columns: const <DataColumn>[
                   DataColumn(label: Text('Tarih')),
                   DataColumn(label: Text('No')),
@@ -86,19 +85,40 @@ class DefterTablosu extends StatelessWidget {
                         DataCell(Text(satir.no ?? '—')),
                         DataCell(Text(satir.madde ?? '—')),
                         DataCell(Text(satir.aciklama ?? '—')),
-                        DataCell(Text(paraGoster(satir.miktarKurus), style: AppTypography.sayisalTablo.copyWith(color: renkler.textPrimary))),
-                        DataCell(Text(paraGoster(satir.yekunKurus), style: AppTypography.sayisalTablo.copyWith(color: renkler.textPrimary))),
+                        DataCell(
+                          Text(
+                            kurusuBicimlendir(satir.miktarKurus),
+                            style: AppTypography.sayisalTablo.copyWith(
+                              color: renkler.textPrimary,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            kurusuBicimlendir(satir.yekunKurus),
+                            style: AppTypography.sayisalTablo.copyWith(
+                              color: renkler.textPrimary,
+                            ),
+                          ),
+                        ),
                         DataCell(
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
                               IconButton(
                                 icon: const Icon(Icons.edit_outlined, size: 18),
-                                onPressed: () => _satirDialoguAc(context, mevcutSatir: satir),
+                                onPressed: () => _satirDialoguAc(
+                                  context,
+                                  mevcutSatir: satir,
+                                ),
                                 tooltip: 'Düzenle',
                               ),
                               IconButton(
-                                icon: Icon(Icons.delete_outline, size: 18, color: renkler.error),
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: renkler.error,
+                                ),
                                 onPressed: () => onSatirSil(satir.id),
                                 tooltip: 'Sil',
                               ),
@@ -115,7 +135,10 @@ class DefterTablosu extends StatelessWidget {
     );
   }
 
-  Future<void> _satirDialoguAc(BuildContext context, {DefterSatiri? mevcutSatir}) async {
+  Future<void> _satirDialoguAc(
+    BuildContext context, {
+    DefterSatiri? mevcutSatir,
+  }) async {
     final DefterSatiri? sonuc = await showDialog<DefterSatiri>(
       context: context,
       builder: (BuildContext context) => _SatirDuzenleDialogu(
@@ -159,8 +182,12 @@ class _SatirDuzenleDialoguState extends State<_SatirDuzenleDialogu> {
     _noController = TextEditingController(text: s?.no ?? '');
     _maddeController = TextEditingController(text: s?.madde ?? '');
     _aciklamaController = TextEditingController(text: s?.aciklama ?? '');
-    _miktarController = TextEditingController(text: s == null ? '' : (s.miktarKurus / 100).toString());
-    _yekunController = TextEditingController(text: s == null ? '' : (s.yekunKurus / 100).toString());
+    _miktarController = TextEditingController(
+      text: s == null ? '' : (s.miktarKurus / 100).toString(),
+    );
+    _yekunController = TextEditingController(
+      text: s == null ? '' : (s.yekunKurus / 100).toString(),
+    );
   }
 
   @override
@@ -174,12 +201,6 @@ class _SatirDuzenleDialoguState extends State<_SatirDuzenleDialogu> {
     super.dispose();
   }
 
-  int _tlToKurus(String metin) {
-    final double? deger = double.tryParse(metin.replaceAll(',', '.'));
-    if (deger == null) return 0;
-    return (deger * 100).round();
-  }
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -189,11 +210,20 @@ class _SatirDuzenleDialoguState extends State<_SatirDuzenleDialogu> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            TextField(controller: _tarihController, decoration: const InputDecoration(labelText: 'Tarih')),
+            TextField(
+              controller: _tarihController,
+              decoration: const InputDecoration(labelText: 'Tarih'),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            TextField(controller: _noController, decoration: const InputDecoration(labelText: 'No')),
+            TextField(
+              controller: _noController,
+              decoration: const InputDecoration(labelText: 'No'),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            TextField(controller: _maddeController, decoration: const InputDecoration(labelText: 'Madde')),
+            TextField(
+              controller: _maddeController,
+              decoration: const InputDecoration(labelText: 'Madde'),
+            ),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _aciklamaController,
@@ -207,7 +237,9 @@ class _SatirDuzenleDialoguState extends State<_SatirDuzenleDialogu> {
                   child: TextField(
                     controller: _miktarController,
                     decoration: const InputDecoration(labelText: 'Miktar (₺)'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -215,7 +247,9 @@ class _SatirDuzenleDialoguState extends State<_SatirDuzenleDialogu> {
                   child: TextField(
                     controller: _yekunController,
                     decoration: const InputDecoration(labelText: 'Yekün (₺)'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                 ),
               ],
@@ -224,7 +258,10 @@ class _SatirDuzenleDialoguState extends State<_SatirDuzenleDialogu> {
         ),
       ),
       actions: <Widget>[
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('İptal')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('İptal'),
+        ),
         FilledButton(
           onPressed: () {
             final DefterSatiri satir = DefterSatiri(
@@ -232,12 +269,20 @@ class _SatirDuzenleDialoguState extends State<_SatirDuzenleDialogu> {
               ortakId: widget.mevcutSatir?.ortakId ?? '',
               tur: widget.tur,
               siraNo: widget.siraNo,
-              tarihHam: _tarihController.text.trim().isEmpty ? null : _tarihController.text.trim(),
-              no: _noController.text.trim().isEmpty ? null : _noController.text.trim(),
-              madde: _maddeController.text.trim().isEmpty ? null : _maddeController.text.trim(),
-              aciklama: _aciklamaController.text.trim().isEmpty ? null : _aciklamaController.text.trim(),
-              miktarKurus: _tlToKurus(_miktarController.text),
-              yekunKurus: _tlToKurus(_yekunController.text),
+              tarihHam: _tarihController.text.trim().isEmpty
+                  ? null
+                  : _tarihController.text.trim(),
+              no: _noController.text.trim().isEmpty
+                  ? null
+                  : _noController.text.trim(),
+              madde: _maddeController.text.trim().isEmpty
+                  ? null
+                  : _maddeController.text.trim(),
+              aciklama: _aciklamaController.text.trim().isEmpty
+                  ? null
+                  : _aciklamaController.text.trim(),
+              miktarKurus: paraMetniniKurusaCevir(_miktarController.text) ?? 0,
+              yekunKurus: paraMetniniKurusaCevir(_yekunController.text) ?? 0,
             );
             Navigator.of(context).pop(satir);
           },

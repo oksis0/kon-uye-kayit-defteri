@@ -1,6 +1,8 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/config/env.dart';
 import '../../data/repository/kuyruk_repository.dart';
+import '../../data/repository/ocr_repository.dart';
 import '../../domain/enum/kuyruk_durumu.dart';
 import '../../domain/model/ice_aktarma_isi.dart';
 
@@ -16,6 +18,7 @@ class KuyrukIlerlemeDurumu {
     this.calisiyorMu = false,
     this.toplam = 0,
     this.tamamlanan = 0,
+    this.ocrBekleyenSayisi = 0,
     this.suankiDosyaAdi,
     this.sonHata,
   });
@@ -23,6 +26,13 @@ class KuyrukIlerlemeDurumu {
   final bool calisiyorMu;
   final int toplam;
   final int tamamlanan;
+
+  /// ★ Bunun için bir "X/Y" yüzdesi GÖSTERİLMİYOR — Azure OCR'ın ne zaman
+  /// biteceği bilinmiyor (ağ, kuyruk, Azure'un kendi işlem süresi). Sahte
+  /// bir ilerleme çubuğu yanıltıcı olurdu; sadece "kaç belge bekliyor"
+  /// dürüstçe gösteriliyor.
+  final int ocrBekleyenSayisi;
+
   final String? suankiDosyaAdi;
   final String? sonHata;
 
@@ -30,6 +40,7 @@ class KuyrukIlerlemeDurumu {
     bool? calisiyorMu,
     int? toplam,
     int? tamamlanan,
+    int? ocrBekleyenSayisi,
     String? suankiDosyaAdi,
     bool suankiDosyaAdiTemizle = false,
     String? sonHata,
@@ -39,17 +50,24 @@ class KuyrukIlerlemeDurumu {
       calisiyorMu: calisiyorMu ?? this.calisiyorMu,
       toplam: toplam ?? this.toplam,
       tamamlanan: tamamlanan ?? this.tamamlanan,
+      ocrBekleyenSayisi: ocrBekleyenSayisi ?? this.ocrBekleyenSayisi,
       suankiDosyaAdi: suankiDosyaAdiTemizle ? null : (suankiDosyaAdi ?? this.suankiDosyaAdi),
       sonHata: sonHataTemizle ? null : (sonHata ?? this.sonHata),
     );
   }
 }
 
-/// Klasör seçiminden görüntü hazırlama tamamlanana kadar olan akışı yönetir.
+/// Klasör seçiminden OCR sonucunun hazır olmasına kadar olan akışı yönetir.
 ///
-/// ★ Faz 2 kapsamı: sadece görüntü hazırlama (format/boyut). OCR YOK —
-/// Faz 3+'ta bu Notifier'a `ocrYapiliyor` adımı eklenecek, arayüz ve
-/// ilerleme mantığı değişmeyecek (PLAN.md §8).
+/// İki aşama:
+/// 1. **Hazırlama** (deterministik) — her dosya için format/boyut kontrolü,
+///    ardından bulut yapılandırılmışsa Azure OCR'ı BAŞLATIR (beklemez).
+/// 2. **OCR bekleme** (belirsiz süreli, sadece bulut yapılandırılmışsa) —
+///    `ocrYapiliyor` durumundaki işler 2 saniyede bir sorgulanır, sonuç
+///    gelince `onayBekliyor`'a geçer (PLAN.md §8).
+///
+/// Bulut yapılandırılmamışsa (env.json boş) 2. aşama hiç çalışmaz — her iş
+/// hazırlama sonrası doğrudan `onayBekliyor`'a geçer (Faz 1-2 elle akışı).
 @riverpod
 class KuyrukIsleyici extends _$KuyrukIsleyici {
   @override
@@ -69,35 +87,56 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
     await hazirlamayaDevamEt();
   }
 
-  /// Bekleyen (henüz hazırlanmamış) tüm işleri sırayla hazırlar.
-  /// ★ Kesintiye dayanıklı: her iş kendi durumunu Drift'e anında yazıyor
-  /// (KuyrukRepository.hazirla), bu yüzden uygulama ortasında kapansa bile
-  /// kalan işler bir sonraki açılışta bu metodun tekrar çağrılmasıyla
-  /// kaldığı yerden devam eder.
+  /// ★ Kesintiye dayanıklı: her iş kendi durumunu Drift'e anında yazıyor,
+  /// bu yüzden uygulama ortasında kapansa bile kalan işler bir sonraki
+  /// açılışta bu metodun tekrar çağrılmasıyla kaldığı yerden devam eder.
   Future<void> hazirlamayaDevamEt() async {
     final KuyrukRepository repo = ref.read(kuyrukRepositoryProvider);
+    final OcrRepository? ocrRepo =
+        Env.bulutYapilandirmasiTamam ? ref.read(ocrRepositoryProvider) : null;
+
     final List<IceAktarmaIsi> tumIsler = await repo.tumunuIzle().first;
     final List<IceAktarmaIsi> bekleyenler =
         tumIsler.where((IceAktarmaIsi is_) => is_.durum == KuyrukDurumu.bekliyor).toList();
 
-    if (bekleyenler.isEmpty) {
-      state = state.kopyala(calisiyorMu: false, suankiDosyaAdiTemizle: true);
-      return;
+    if (bekleyenler.isNotEmpty) {
+      state = state.kopyala(
+        calisiyorMu: true,
+        toplam: bekleyenler.length,
+        tamamlanan: 0,
+        sonHataTemizle: true,
+      );
+
+      for (final IceAktarmaIsi is_ in bekleyenler) {
+        state = state.kopyala(suankiDosyaAdi: is_.dosyaAdi);
+        await repo.hazirla(is_.id, ocrRepo: ocrRepo);
+        state = state.kopyala(tamamlanan: state.tamamlanan + 1);
+      }
     }
 
-    state = state.kopyala(
-      calisiyorMu: true,
-      toplam: bekleyenler.length,
-      tamamlanan: 0,
-      sonHataTemizle: true,
-    );
-
-    for (final IceAktarmaIsi is_ in bekleyenler) {
-      state = state.kopyala(suankiDosyaAdi: is_.dosyaAdi);
-      await repo.hazirla(is_.id);
-      state = state.kopyala(tamamlanan: state.tamamlanan + 1);
+    if (ocrRepo != null) {
+      await _ocrBeklemeDongusu(repo, ocrRepo);
     }
 
-    state = state.kopyala(calisiyorMu: false, suankiDosyaAdiTemizle: true);
+    state = state.kopyala(calisiyorMu: false, suankiDosyaAdiTemizle: true, ocrBekleyenSayisi: 0);
+  }
+
+  Future<void> _ocrBeklemeDongusu(KuyrukRepository repo, OcrRepository ocrRepo) async {
+    while (true) {
+      final List<IceAktarmaIsi> tumIsler = await repo.tumunuIzle().first;
+      final List<IceAktarmaIsi> ocrBekleyenler = tumIsler
+          .where((IceAktarmaIsi is_) => is_.durum == KuyrukDurumu.ocrYapiliyor)
+          .toList();
+
+      if (ocrBekleyenler.isEmpty) return;
+
+      state = state.kopyala(calisiyorMu: true, ocrBekleyenSayisi: ocrBekleyenler.length);
+
+      for (final IceAktarmaIsi is_ in ocrBekleyenler) {
+        await repo.ocrDurumunuKontrolEt(is_.id, ocrRepo);
+      }
+
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
   }
 }

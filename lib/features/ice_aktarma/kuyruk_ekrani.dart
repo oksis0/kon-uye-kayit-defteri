@@ -7,8 +7,10 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
 import '../../data/repository/kuyruk_repository.dart';
+import '../../data/repository/ocr_repository.dart';
 import '../../domain/enum/kuyruk_durumu.dart';
 import '../../domain/model/ice_aktarma_isi.dart';
+import '../../domain/model/ocr_sonucu.dart';
 import '../ortak_detay/ortak_duzenle_ekrani.dart';
 import 'kuyruk_provider.dart';
 import 'widget/ilerleme_cubugu.dart';
@@ -146,11 +148,19 @@ class _KuyrukSatiri extends ConsumerWidget {
           const SizedBox(width: AppSpacing.sm),
           FilledButton(
             onPressed: () async {
+              // ★ ocrHamJson doluysa (bulut yapılandırılmışsa) burada
+              // ayrıştırılır — form OCR sonuçlarıyla ön-dolu açılır.
+              // Boşsa (Faz 1-2 elle akışı) tamamen boş form açılır.
+              final OcrSonucu? ocrSonucu = is_.ocrHamJson != null
+                  ? ref.read(ocrRepositoryProvider).hamJsondanAyristir(is_.ocrHamJson!)
+                  : null;
+
               await context.push<String>(
                 '/ortak/yeni',
                 extra: OrtakYeniParametreleri(
                   iceAktarmaIsiId: is_.id,
                   onizlemeGorselYolu: is_.dosyaYolu,
+                  ocrSonucu: ocrSonucu,
                 ),
               );
             },

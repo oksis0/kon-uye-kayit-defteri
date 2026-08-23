@@ -55,8 +55,5 @@ worker/.dev.vars
 worker/node_modules/
 worker/.wrangler/
 
-# Firebase yapılandırma (proje kimliği gizli değil ama yine de repoya girmesin)
-lib/firebase_options.dart
-
 # Uygulama içi yedekler (test sırasında oluşabilir)
 /yedek_*/
