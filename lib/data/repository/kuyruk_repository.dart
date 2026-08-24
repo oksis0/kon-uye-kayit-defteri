@@ -61,26 +61,36 @@ class KuyrukRepository {
       if (girdi is! File) continue;
       if (!_desteklenenUzantilar.contains(_uzanti(girdi.path))) continue;
 
-      final String hash = await dosyaHashHesapla(girdi.path);
-      final bool zatenVar = await _db.kuyrukDao.hashVarMi(hash);
-      if (zatenVar) {
+      final bool eklendiMi = await dosyaEkle(girdi.path);
+      if (eklendiMi) {
+        eklenen++;
+      } else {
         atlanan++;
-        continue;
       }
-
-      final IceAktarmaIsi is_ = IceAktarmaIsi(
-        id: _uuid.v4(),
-        dosyaYolu: girdi.path,
-        dosyaAdi: girdi.uri.pathSegments.last,
-        dosyaHash: hash,
-        durum: KuyrukDurumu.bekliyor,
-        eklenmeTarihi: DateTime.now(),
-      );
-      await _db.kuyrukDao.ekle(_companionaDonustur(is_));
-      eklenen++;
     }
 
     return KlasorTaramaSonucu(eklenen: eklenen, atlanan: atlanan);
+  }
+
+  /// Tek bir dosyayı kuyruğa ekler — mobilde kamera/galeriden gelen tek
+  /// fotoğraf için (PLAN.md §6.2). Masaüstündeki [klasordenIceAktar] da
+  /// aynı hash-kontrolü için bunu kullanır. Zaten kuyrukta olan bir dosya
+  /// (aynı hash) sessizce atlanır, `false` döner.
+  Future<bool> dosyaEkle(String dosyaYolu) async {
+    final String hash = await dosyaHashHesapla(dosyaYolu);
+    final bool zatenVar = await _db.kuyrukDao.hashVarMi(hash);
+    if (zatenVar) return false;
+
+    final IceAktarmaIsi is_ = IceAktarmaIsi(
+      id: _uuid.v4(),
+      dosyaYolu: dosyaYolu,
+      dosyaAdi: Uri.file(dosyaYolu).pathSegments.last,
+      dosyaHash: hash,
+      durum: KuyrukDurumu.bekliyor,
+      eklenmeTarihi: DateTime.now(),
+    );
+    await _db.kuyrukDao.ekle(_companionaDonustur(is_));
+    return true;
   }
 
   /// Bir işin görüntüsünü hazırlar (format/boyut kontrolü), ardından

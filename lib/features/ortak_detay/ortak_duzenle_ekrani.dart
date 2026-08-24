@@ -316,13 +316,34 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
           ? const Center(child: CircularProgressIndicator())
           : gorselYolu == null
           ? _form(context)
-          : Row(
-              children: <Widget>[
-                Expanded(child: BelgeOnizleme(dosyaYolu: gorselYolu)),
-                VerticalDivider(width: 1, color: context.renkler.border),
-                Expanded(child: _form(context)),
-              ],
-            ),
+          : _gorselliDuzen(context, gorselYolu),
+    );
+  }
+
+  /// ★ Responsive (PLAN.md §14): geniş ekranda görsel+form yan yana; dar
+  /// (mobil) ekranda üst üste — ikisi de aynı genişliğe sıkışınca hem
+  /// görsel hem form okunmaz hâle gelirdi.
+  static const double _genisEkranEsigi = 700;
+
+  Widget _gorselliDuzen(BuildContext context, String gorselYolu) {
+    final bool genisEkran = MediaQuery.sizeOf(context).width >= _genisEkranEsigi;
+
+    if (genisEkran) {
+      return Row(
+        children: <Widget>[
+          Expanded(child: BelgeOnizleme(dosyaYolu: gorselYolu)),
+          VerticalDivider(width: 1, color: context.renkler.border),
+          Expanded(child: _form(context)),
+        ],
+      );
+    }
+
+    return Column(
+      children: <Widget>[
+        SizedBox(height: 260, child: BelgeOnizleme(dosyaYolu: gorselYolu)),
+        Divider(height: 1, color: context.renkler.border),
+        Expanded(child: _form(context)),
+      ],
     );
   }
 

@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Ortak Pay Defteri sayfalarını taramak için kamera erişimi gerekiyor.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Galeriden taranmış belge fotoğrafı seçmek için erişim gerekiyor.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

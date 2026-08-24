@@ -32,6 +32,10 @@ class AramaEkrani extends ConsumerWidget {
     ref.watch(baslangicSenkronuProvider);
 
     final bool genisEkran = MediaQuery.sizeOf(context).width >= _genisEkranEsigi;
+    // ★ Mobilde ("İçe Aktar" + "Yeni Ortak" metinli butonlar + 2 ikon)
+    // AppBar'ı taşırırdı — dar ekranda etiketler kaldırılıp sadece ikon
+    // gösteriliyor (PLAN.md §14).
+    final bool cokDarEkran = MediaQuery.sizeOf(context).width < 600;
 
     return Scaffold(
       appBar: AppBar(
@@ -48,21 +52,34 @@ class AramaEkrani extends ConsumerWidget {
             tooltip: 'Yedekleme',
           ),
           const SizedBox(width: AppSpacing.xs),
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: OutlinedButton.icon(
+          if (cokDarEkran)
+            IconButton(
               onPressed: () => context.push('/ice-aktarma'),
-              icon: const Icon(Icons.folder_open_outlined, size: 18),
-              label: const Text('İçe Aktar'),
+              icon: const Icon(Icons.folder_open_outlined),
+              tooltip: 'İçe Aktar',
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/ice-aktarma'),
+                icon: const Icon(Icons.folder_open_outlined, size: 18),
+                label: const Text('İçe Aktar'),
+              ),
             ),
-          ),
           Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
-            child: FilledButton.icon(
-              onPressed: () => context.push('/ortak/yeni'),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Yeni Ortak'),
-            ),
+            padding: EdgeInsets.only(right: cokDarEkran ? AppSpacing.sm : AppSpacing.md),
+            child: cokDarEkran
+                ? IconButton.filled(
+                    onPressed: () => context.push('/ortak/yeni'),
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Yeni Ortak',
+                  )
+                : FilledButton.icon(
+                    onPressed: () => context.push('/ortak/yeni'),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Yeni Ortak'),
+                  ),
           ),
         ],
       ),

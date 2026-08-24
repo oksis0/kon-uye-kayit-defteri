@@ -87,6 +87,23 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
     await hazirlamayaDevamEt();
   }
 
+  /// Mobilde kamera/galeriden gelen TEK bir fotoğrafı kuyruğa ekler ve
+  /// hemen işlemeye başlar (PLAN.md §6.2). Masaüstündeki klasör akışının
+  /// mobil karşılığı.
+  Future<void> tekDosyaEkleVeIsle(String dosyaYolu) async {
+    final KuyrukRepository repo = ref.read(kuyrukRepositoryProvider);
+    state = state.kopyala(calisiyorMu: true, sonHataTemizle: true);
+
+    try {
+      await repo.dosyaEkle(dosyaYolu);
+    } catch (e) {
+      state = state.kopyala(calisiyorMu: false, sonHata: e.toString());
+      return;
+    }
+
+    await hazirlamayaDevamEt();
+  }
+
   /// ★ Kesintiye dayanıklı: her iş kendi durumunu Drift'e anında yazıyor,
   /// bu yüzden uygulama ortasında kapansa bile kalan işler bir sonraki
   /// açılışta bu metodun tekrar çağrılmasıyla kaldığı yerden devam eder.

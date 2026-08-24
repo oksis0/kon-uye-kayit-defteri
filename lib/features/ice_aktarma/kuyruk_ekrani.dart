@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
@@ -15,13 +18,13 @@ import '../ortak_detay/ortak_duzenle_ekrani.dart';
 import 'kuyruk_provider.dart';
 import 'widget/ilerleme_cubugu.dart';
 
-/// İçe aktarma kuyruğu — klasör seç, taranan dosyaları gör, her birini
-/// bir ortağa bağla (PLAN.md §8).
-///
-/// ★ Faz 2 kapsamı: OCR YOK. Kuyruk sadece görsel hazırlar; kullanıcı
-/// "Ortak Ekle" ile formu elle doldurur (görsel yanında önizlenir).
+/// İçe aktarma kuyruğu — masaüstünde klasör seç, mobilde kamera/galeriden
+/// tek tek ekle; taranan dosyaları gör, her birini bir ortağa bağla
+/// (PLAN.md §8, §6.2).
 class KuyrukEkrani extends ConsumerWidget {
   const KuyrukEkrani({super.key});
+
+  bool get _mobil => Platform.isAndroid || Platform.isIOS;
 
   Future<void> _klasorSec(BuildContext context, WidgetRef ref) async {
     final String? klasorYolu = await FilePicker.platform.getDirectoryPath(
@@ -29,6 +32,18 @@ class KuyrukEkrani extends ConsumerWidget {
     );
     if (klasorYolu == null) return;
     await ref.read(kuyrukIsleyiciProvider.notifier).klasorSecVeIceAktar(klasorYolu);
+  }
+
+  /// PLAN.md §6.2 — mobilde `image_picker` ile kamera/galeri.
+  ///
+  /// ★ `imageQuality` BİLİNÇLİ OLARAK VERİLMİYOR — image_picker'ın kendi
+  /// sıkıştırmasını devre dışı bırakır. HEIC→JPEG dönüşümü ve boyut
+  /// kontrolü zaten `GoruntuHazirlayici`'nin mobil kolunda (PLAN.md §6.3)
+  /// yapılıyor; burada iki kez sıkıştırma olmasın diye ham dosya alınır.
+  Future<void> _mobildenEkle(WidgetRef ref, ImageSource kaynak) async {
+    final XFile? dosya = await ImagePicker().pickImage(source: kaynak);
+    if (dosya == null) return;
+    await ref.read(kuyrukIsleyiciProvider.notifier).tekDosyaEkleVeIsle(dosya.path);
   }
 
   @override
@@ -40,16 +55,34 @@ class KuyrukEkrani extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('İçe Aktarma Kuyruğu'),
-        actions: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
-            child: FilledButton.icon(
-              onPressed: ilerleme.calisiyorMu ? null : () => _klasorSec(context, ref),
-              icon: const Icon(Icons.folder_open_outlined, size: 18),
-              label: const Text('Klasör Seç'),
-            ),
-          ),
-        ],
+        actions: _mobil
+            ? <Widget>[
+                IconButton(
+                  onPressed: ilerleme.calisiyorMu
+                      ? null
+                      : () => _mobildenEkle(ref, ImageSource.camera),
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  tooltip: 'Kameradan Çek',
+                ),
+                IconButton(
+                  onPressed: ilerleme.calisiyorMu
+                      ? null
+                      : () => _mobildenEkle(ref, ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  tooltip: 'Galeriden Seç',
+                ),
+                const SizedBox(width: AppSpacing.sm),
+              ]
+            : <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.md),
+                  child: FilledButton.icon(
+                    onPressed: ilerleme.calisiyorMu ? null : () => _klasorSec(context, ref),
+                    icon: const Icon(Icons.folder_open_outlined, size: 18),
+                    label: const Text('Klasör Seç'),
+                  ),
+                ),
+              ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -68,7 +101,9 @@ class KuyrukEkrani extends ConsumerWidget {
                   if (isler.isEmpty) {
                     return Center(
                       child: Text(
-                        'Kuyruk boş. Sağ üstten bir klasör seçerek başlayın.',
+                        _mobil
+                            ? 'Kuyruk boş. Sağ üstten kamera veya galeri ile başlayın.'
+                            : 'Kuyruk boş. Sağ üstten bir klasör seçerek başlayın.',
                         style: AppTypography.body.copyWith(color: renkler.textSecondary),
                       ),
                     );
