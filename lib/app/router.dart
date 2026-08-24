@@ -8,6 +8,7 @@ import '../core/config/env.dart';
 import '../data/uzak/auth_servisi.dart';
 import '../features/arama/arama_ekrani.dart';
 import '../features/auth/giris_ekrani.dart';
+import '../features/ayarlar/ayarlar_ekrani.dart';
 import '../features/ice_aktarma/kuyruk_ekrani.dart';
 import '../features/ortak_detay/ortak_detay_ekrani.dart';
 import '../features/ortak_detay/ortak_duzenle_ekrani.dart';
@@ -90,6 +91,10 @@ GoRouter _routerOlustur({
       GoRoute(
         path: '/yedek',
         builder: (context, state) => const YedekEkrani(),
+      ),
+      GoRoute(
+        path: '/ayarlar',
+        builder: (context, state) => const AyarlarEkrani(),
       ),
     ],
   );

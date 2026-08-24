@@ -37,6 +37,30 @@ class FirestoreServisi {
   Future<void> ortakSil(String ortakId) => _ortaklarKoleksiyonu.doc(ortakId).delete();
 
   // ---------------------------------------------------------------------
+  // Azure OCR kota sayacı (PLAN.md §9) — `sistem/kota_{yyyy-MM}`.
+  // ★ Bu, uygulamanın kendi TAHMİNİ sayacı. Gerçek kaynak Azure paneli;
+  // senkronizasyon kayması ihtimaline karşı ayda bir orada doğrulanmalı.
+  // ---------------------------------------------------------------------
+
+  Future<int> kotaOku(String ay) async {
+    final DocumentSnapshot<Map<String, dynamic>> anlik =
+        await _db.collection('sistem').doc('kota_$ay').get();
+    return (anlik.data()?['ocrSayfaSayisi'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Atomik artırma — `FieldValue.increment` sayesinde iki OCR isteği aynı
+  /// anda gelse bile sayaç kaybolmaz (transaction'a gerek yok).
+  Future<void> kotaArtir(String ay) {
+    return _db.collection('sistem').doc('kota_$ay').set(
+      <String, dynamic>{
+        'ocrSayfaSayisi': FieldValue.increment(1),
+        'sonGuncelleme': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  // ---------------------------------------------------------------------
   // Kalıcı silme — mezar taşı (PLAN.md §10.2). Adım adım silme sırasında
   // elektrik kesilirse, açılışta [silmeTalepleriGetir] ile yarım kalan
   // işlemler bulunup tamamlanabilir.

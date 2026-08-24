@@ -38,6 +38,11 @@ class AramaEkrani extends ConsumerWidget {
         title: const Text('Ortak Pay Defteri'),
         actions: <Widget>[
           IconButton(
+            onPressed: () => context.push('/ayarlar'),
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Ayarlar',
+          ),
+          IconButton(
             onPressed: () => context.push('/yedek'),
             icon: const Icon(Icons.backup_outlined),
             tooltip: 'Yedekleme',

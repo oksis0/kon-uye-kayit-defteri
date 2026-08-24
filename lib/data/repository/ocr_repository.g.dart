@@ -48,4 +48,4 @@ final class OcrRepositoryProvider
   }
 }
 
-String _$ocrRepositoryHash() => r'407140b8c4a16b69a869c6e310bf5b78050bbaef';
+String _$ocrRepositoryHash() => r'd8e2eb6d173ef84615ea0e96a0c6e4c1679341ee';

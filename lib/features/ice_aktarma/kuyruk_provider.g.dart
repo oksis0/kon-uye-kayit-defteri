@@ -116,7 +116,7 @@ final class KuyrukIsleyiciProvider
   }
 }
 
-String _$kuyrukIsleyiciHash() => r'f301663edccfed53c5f029dbfe6cbec3908bc125';
+String _$kuyrukIsleyiciHash() => r'8b231ef016280b9787e781078e6bc4460bd80c0c';
 
 /// Klasör seçiminden OCR sonucunun hazır olmasına kadar olan akışı yönetir.
 ///

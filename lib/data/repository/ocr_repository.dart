@@ -1,21 +1,57 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:intl/intl.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/config/env.dart';
 import '../../domain/model/ocr_sonucu.dart';
+import '../uzak/firestore_servisi.dart';
 import '../uzak/worker_istemcisi.dart';
 import 'ocr_ayristirici.dart';
 
 part 'ocr_repository.g.dart';
 
-/// OCR başlatma + bekleme + ayrıştırma tek yerde (PLAN.md §7).
+/// Azure Document Intelligence ücretsiz katmanının aylık sayfa limiti
+/// (PLAN.md §9).
+const int aylikUcretsizOcrLimiti = 500;
+
+/// OCR başlatma + bekleme + ayrıştırma + kota takibi tek yerde (PLAN.md §7, §9).
 class OcrRepository {
-  OcrRepository(this._worker);
+  OcrRepository(this._worker, this._firestore);
 
   final WorkerIstemcisi _worker;
+  final FirestoreServisi? _firestore;
 
-  Future<String> baslat(Uint8List gorselVerisi) => _worker.ocrBaslat(gorselVerisi);
+  String get _guncelAy => DateFormat('yyyy-MM').format(DateTime.now());
+
+  /// ★ Bu ay kaç sayfa OCR yapıldığı — bizim tahmini sayacımız (PLAN.md §9).
+  /// Firestore yoksa (bulut yapılandırılmamışsa) kota takibi anlamsız,
+  /// 0 döner (sınırsız kabul edilir).
+  Future<int> kotaKullanimi() {
+    final FirestoreServisi? firestore = _firestore;
+    if (firestore == null) return Future<int>.value(0);
+    return firestore.kotaOku(_guncelAy);
+  }
+
+  Future<bool> kotaDoluMu() async {
+    if (_firestore == null) return false;
+    final int kullanim = await kotaKullanimi();
+    return kullanim >= aylikUcretsizOcrLimiti;
+  }
+
+  /// Azure analizini başlatır. Başarılı olursa kota sayacı bir artırılır
+  /// (Azure sayfayı zaten işlemiş sayılır — sonradan hata alsa da kota
+  /// harcanmıştır).
+  Future<String> baslat(Uint8List gorselVerisi) async {
+    final String operationId = await _worker.ocrBaslat(gorselVerisi);
+    final FirestoreServisi? firestore = _firestore;
+    if (firestore != null) {
+      unawaited(firestore.kotaArtir(_guncelAy));
+    }
+    return operationId;
+  }
 
   /// Tek bir durum sorgusu — bekleme döngüsü ÇAĞIRAN TARAFTA (kuyruk
   /// işleyicisinde), burada değil. Böylece kullanıcı ilerlemeyi görebiliyor
@@ -72,5 +108,8 @@ class OcrIslemSonucuHata extends OcrIslemSonucu {
 
 @Riverpod(keepAlive: true)
 OcrRepository ocrRepository(Ref ref) {
-  return OcrRepository(ref.watch(workerIstemcisiProvider));
+  final WorkerIstemcisi worker = ref.watch(workerIstemcisiProvider);
+  final FirestoreServisi? firestore =
+      Env.bulutYapilandirmasiTamam ? ref.watch(firestoreServisiProvider) : null;
+  return OcrRepository(worker, firestore);
 }

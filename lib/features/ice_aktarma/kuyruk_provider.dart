@@ -107,9 +107,29 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
         sonHataTemizle: true,
       );
 
+      // ★ Kota kontrolü (PLAN.md §9) — 500'de kuyruk otomatik duraklar.
+      // Firestore'a her iş için tekrar sormak yerine bir kez okuyup
+      // yereldeki döngüde düşürüyoruz (aynı anda başka kimse OCR
+      // başlatmıyor — 2 kişilik ekip senaryosu).
+      int? kalanKota;
+      if (ocrRepo != null) {
+        final int kullanim = await ocrRepo.kotaKullanimi();
+        kalanKota = aylikUcretsizOcrLimiti - kullanim;
+      }
+
       for (final IceAktarmaIsi is_ in bekleyenler) {
+        if (kalanKota != null && kalanKota <= 0) {
+          state = state.kopyala(
+            sonHata: 'Bu ayki 500 sayfa Azure OCR kotası doldu. Kalan '
+                '${bekleyenler.length - state.tamamlanan} belge gelecek ay '
+                'işlenecek (PLAN.md §9).',
+          );
+          break;
+        }
+
         state = state.kopyala(suankiDosyaAdi: is_.dosyaAdi);
         await repo.hazirla(is_.id, ocrRepo: ocrRepo);
+        if (kalanKota != null) kalanKota--;
         state = state.kopyala(tamamlanan: state.tamamlanan + 1);
       }
     }
