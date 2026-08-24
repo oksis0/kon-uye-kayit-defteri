@@ -11,6 +11,7 @@ import '../features/auth/giris_ekrani.dart';
 import '../features/ice_aktarma/kuyruk_ekrani.dart';
 import '../features/ortak_detay/ortak_detay_ekrani.dart';
 import '../features/ortak_detay/ortak_duzenle_ekrani.dart';
+import '../features/yedek/yedek_ekrani.dart';
 
 part 'router.g.dart';
 
@@ -85,6 +86,10 @@ GoRouter _routerOlustur({
       GoRoute(
         path: '/ice-aktarma',
         builder: (context, state) => const KuyrukEkrani(),
+      ),
+      GoRoute(
+        path: '/yedek',
+        builder: (context, state) => const YedekEkrani(),
       ),
     ],
   );

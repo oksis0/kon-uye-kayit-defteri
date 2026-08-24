@@ -27,11 +27,48 @@ class FirestoreServisi {
   CollectionReference<Map<String, dynamic>> get _ortaklarKoleksiyonu =>
       _db.collection('ortaklar');
 
+  CollectionReference<Map<String, dynamic>> get _silmeTalepleriKoleksiyonu =>
+      _db.collection('silmeTalepleri');
+
   Future<void> ortakYaz(Ortak ortak, List<DefterSatiri> satirlar) {
     return _ortaklarKoleksiyonu.doc(ortak.id).set(_ortagiDocaCevir(ortak, satirlar));
   }
 
   Future<void> ortakSil(String ortakId) => _ortaklarKoleksiyonu.doc(ortakId).delete();
+
+  // ---------------------------------------------------------------------
+  // Kalıcı silme — mezar taşı (PLAN.md §10.2). Adım adım silme sırasında
+  // elektrik kesilirse, açılışta [silmeTalepleriGetir] ile yarım kalan
+  // işlemler bulunup tamamlanabilir.
+  // ---------------------------------------------------------------------
+
+  Future<void> silmeTalebiYaz(String ortakId, {String? r2Anahtari, required String adim}) {
+    return _silmeTalepleriKoleksiyonu.doc(ortakId).set(<String, dynamic>{
+      'ortakId': ortakId,
+      'r2Anahtari': r2Anahtari,
+      'adim': adim,
+      'olusturmaTarihi': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> silmeTalebiGuncelle(String ortakId, {required String adim}) {
+    return _silmeTalepleriKoleksiyonu.doc(ortakId).update(<String, dynamic>{'adim': adim});
+  }
+
+  Future<void> silmeTalebiSil(String ortakId) => _silmeTalepleriKoleksiyonu.doc(ortakId).delete();
+
+  /// Açılışta çağrılır — yarım kalan kalıcı silmeleri bulur (PLAN.md §10.2).
+  Future<List<SilmeTalebi>> silmeTalepleriGetir() async {
+    final QuerySnapshot<Map<String, dynamic>> anlik = await _silmeTalepleriKoleksiyonu.get();
+    return anlik.docs.map((QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+      final Map<String, dynamic> veri = doc.data();
+      return SilmeTalebi(
+        ortakId: veri['ortakId'] as String? ?? doc.id,
+        r2Anahtari: veri['r2Anahtari'] as String?,
+        adim: veri['adim'] as String? ?? 'r2',
+      );
+    }).toList();
+  }
 
   /// [sonSenkron]'dan sonra güncellenen kayıtları çeker (delta senkron —
   /// PLAN.md §2.5). İlk senkronda [sonSenkron] çok eski bir tarih verilerek
@@ -142,6 +179,17 @@ class FirestoreServisi {
 
     return (ortak, satirlar);
   }
+}
+
+/// Kalıcı silme mezar taşı (PLAN.md §10.2). [adim] hangi aşamada
+/// kalındığını gösterir: `"r2"` → R2 henüz silinmedi, `"firestore"` →
+/// R2 silindi ama Firestore kaydı duruyor, `"yerel"` → ikisi de silindi,
+/// sadece yerel Drift kaydı kaldı.
+class SilmeTalebi {
+  const SilmeTalebi({required this.ortakId, this.r2Anahtari, required this.adim});
+  final String ortakId;
+  final String? r2Anahtari;
+  final String adim;
 }
 
 /// ★ Sadece `Env.bulutYapilandirmasiTamam == true` iken okunmalı —

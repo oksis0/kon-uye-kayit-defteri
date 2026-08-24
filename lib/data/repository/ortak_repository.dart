@@ -13,6 +13,7 @@ import '../uzak/firestore_servisi.dart';
 import '../yerel/dao/meta_dao.dart';
 import '../yerel/veritabani.dart';
 import '../yerel/veritabani_provider.dart';
+import 'belge_repository.dart';
 
 part 'ortak_repository.g.dart';
 
@@ -32,10 +33,11 @@ const Uuid _uuid = Uuid();
 /// (PLAN.md §15 Faz 4 notu). 2 kişilik ekip ölçeğinde bu yeterli; başarısız
 /// push'lar için otomatik yeniden deneme kuyruğu da yok (ileride eklenebilir).
 class OrtakRepository {
-  OrtakRepository(this._db, this._firestore);
+  OrtakRepository(this._db, this._firestore, this._belgeRepo);
 
   final AppVeritabani _db;
   final FirestoreServisi? _firestore;
+  final BelgeRepository? _belgeRepo;
 
   Stream<List<Ortak>> ara(String sorgu, {bool pasifleriDeGoster = false}) {
     final String normalize = turkceNormalize(sorgu);
@@ -101,10 +103,77 @@ class OrtakRepository {
     return guncelOrtak;
   }
 
-  /// Soft delete (PLAN.md §10.1) — kalıcı silme Faz 7'de eklenecek.
+  /// Soft delete (PLAN.md §10.1) — varsayılan silme davranışı. Veri
+  /// silinmez, sadece `aktif: false` yapılır (yasal saklama ihtimaline
+  /// karşı — bkz. kullanıcı için ekrandaki uyarı).
   Future<void> pasifYap(String id, String neden) async {
     await _db.ortakDao.pasifYap(id, neden);
     _firestoreyeItGorunmeden(id);
+  }
+
+  /// ★ Kalıcı silme — mezar taşlı, sıralı akış (PLAN.md §10.2). Sadece
+  /// gerçek hatalar için (örn. aynı belge iki kez taranmış). Sıra
+  /// KASITLI: önce mezar taşı, sonra R2, sonra Firestore, en son yerel —
+  /// böylece yarıda kesilse bile [yarimKalanSilmeleriTamamla] devam
+  /// edebilir. Her adım idempotent (R2 silme, Firestore silme, yerel
+  /// silme — hepsi zaten-silinmiş durumda hata vermez), bu yüzden
+  /// yeniden deneme her zaman baştan güvenle çalıştırılabilir.
+  Future<void> kaliciSil(String ortakId) async {
+    final Ortak? ortak = await idIleGetir(ortakId);
+    if (ortak == null) return;
+
+    final FirestoreServisi? firestore = _firestore;
+    if (firestore == null) {
+      // Bulut yapılandırılmamış — silinecek uzak bir şey yok.
+      await _yereldenTamamenSil(ortakId);
+      return;
+    }
+
+    await firestore.silmeTalebiYaz(ortakId, r2Anahtari: ortak.belgeR2Anahtari, adim: 'r2');
+    await _mezarTasiIzleyerekSil(ortakId, ortak.belgeR2Anahtari, firestore);
+  }
+
+  /// Açılışta çağrılır — elektrik kesintisi/çökme yüzünden yarıda kalmış
+  /// kalıcı silmeleri tamamlar (PLAN.md §10.2).
+  Future<void> yarimKalanSilmeleriTamamla() async {
+    final FirestoreServisi? firestore = _firestore;
+    if (firestore == null) return;
+
+    final List<SilmeTalebi> talepler = await firestore.silmeTalepleriGetir();
+    for (final SilmeTalebi talep in talepler) {
+      try {
+        await _mezarTasiIzleyerekSil(talep.ortakId, talep.r2Anahtari, firestore);
+      } catch (e, s) {
+        developer.log(
+          'Yarım kalan kalıcı silme tamamlanamadı: ${talep.ortakId}',
+          name: 'OrtakRepository',
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }
+  }
+
+  Future<void> _mezarTasiIzleyerekSil(
+    String ortakId,
+    String? r2Anahtari,
+    FirestoreServisi firestore,
+  ) async {
+    if (r2Anahtari != null && _belgeRepo != null) {
+      await _belgeRepo.sil(r2Anahtari);
+    }
+    await firestore.silmeTalebiGuncelle(ortakId, adim: 'firestore');
+
+    await firestore.ortakSil(ortakId);
+    await firestore.silmeTalebiGuncelle(ortakId, adim: 'yerel');
+
+    await _yereldenTamamenSil(ortakId);
+    await firestore.silmeTalebiSil(ortakId);
+  }
+
+  Future<void> _yereldenTamamenSil(String ortakId) async {
+    await _db.defterSatiriDao.ortaginTumSatirlariniSil(ortakId);
+    await _db.ortakDao.kaliciSil(ortakId);
   }
 
   Future<DefterSatiri> satirEkle(DefterSatiri satir) async {
@@ -294,7 +363,9 @@ OrtakRepository ortakRepository(Ref ref) {
   // fırlatırdı (PLAN.md §12.5).
   final FirestoreServisi? firestore =
       Env.bulutYapilandirmasiTamam ? ref.watch(firestoreServisiProvider) : null;
-  return OrtakRepository(db, firestore);
+  final BelgeRepository? belgeRepo =
+      Env.bulutYapilandirmasiTamam ? ref.watch(belgeRepositoryProvider) : null;
+  return OrtakRepository(db, firestore, belgeRepo);
 }
 
 /// Uygulama açılışında BİR KEZ çalışır (app.dart'ta `ref.watch` edilir,
@@ -303,5 +374,10 @@ OrtakRepository ortakRepository(Ref ref) {
 @Riverpod(keepAlive: true)
 Future<void> baslangicSenkronu(Ref ref) async {
   if (!Env.bulutYapilandirmasiTamam) return;
-  await ref.watch(ortakRepositoryProvider).firestoretenSenkronizeEt();
+  final OrtakRepository repo = ref.watch(ortakRepositoryProvider);
+  // ★ Önce yarım kalan kalıcı silmeleri tamamla (PLAN.md §10.2), sonra
+  // normal senkronu çalıştır — sıra önemli değil ama temizlik önce
+  // bitince pull sırasında "hayalet" kayıt görünme ihtimali azalır.
+  await repo.yarimKalanSilmeleriTamamla();
+  await repo.firestoretenSenkronizeEt();
 }

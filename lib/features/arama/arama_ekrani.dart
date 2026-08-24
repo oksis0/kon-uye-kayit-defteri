@@ -37,6 +37,12 @@ class AramaEkrani extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Ortak Pay Defteri'),
         actions: <Widget>[
+          IconButton(
+            onPressed: () => context.push('/yedek'),
+            icon: const Icon(Icons.backup_outlined),
+            tooltip: 'Yedekleme',
+          ),
+          const SizedBox(width: AppSpacing.xs),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.sm),
             child: OutlinedButton.icon(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -73,7 +75,13 @@ class _OrtakDetayIcerik extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          KimlikBilgiKarti(ortak: ortak),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(child: KimlikBilgiKarti(ortak: ortak)),
+              _DahaFazlaMenusu(ortak: ortak, repo: repo),
+            ],
+          ),
           const SizedBox(height: AppSpacing.xl),
           satirlarAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -119,6 +127,113 @@ class _OrtakDetayIcerik extends ConsumerWidget {
           if (ortak.aktif) _PasifYapButonu(ortak: ortak, repo: repo),
         ],
       ),
+    );
+  }
+}
+
+/// "⋯" menüsü — PLAN.md §10.2: kalıcı silme YANLIŞLIKLA tıklanamayacak
+/// şekilde bilinçli olarak bir menünün içinde, ayrı bir buton değil.
+class _DahaFazlaMenusu extends StatelessWidget {
+  const _DahaFazlaMenusu({required this.ortak, required this.repo});
+
+  final Ortak ortak;
+  final OrtakRepository repo;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<void>(
+      icon: const Icon(Icons.more_vert),
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<void>>[
+        PopupMenuItem<void>(
+          onTap: () => unawaited(_kaliciSilAkisiniBaslat(context)),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.delete_forever_outlined, size: 18, color: context.renkler.error),
+              const SizedBox(width: AppSpacing.sm),
+              Text('Kalıcı Sil', style: TextStyle(color: context.renkler.error)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _kaliciSilAkisiniBaslat(BuildContext context) async {
+    // PopupMenuItem'ın kendi kapanma animasyonuyla çakışmasın diye bir
+    // sonraki frame'e ertele.
+    await Future<void>.delayed(Duration.zero);
+    if (!context.mounted) return;
+
+    final bool? onaylandi = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => _KaliciSilDialogu(ortak: ortak),
+    );
+    if (onaylandi != true || !context.mounted) return;
+
+    await repo.kaliciSil(ortak.id);
+    if (context.mounted) unawaited(Navigator.of(context).maybePop());
+  }
+}
+
+class _KaliciSilDialogu extends StatefulWidget {
+  const _KaliciSilDialogu({required this.ortak});
+  final Ortak ortak;
+
+  @override
+  State<_KaliciSilDialogu> createState() => _KaliciSilDialoguState();
+}
+
+class _KaliciSilDialoguState extends State<_KaliciSilDialogu> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _onayliMi => _controller.text.trim() == widget.ortak.ortakNo;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors renkler = context.renkler;
+    return AlertDialog(
+      title: const Text('Kalıcı olarak sil'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '"${widget.ortak.adSoyad}" (Ortak No: ${widget.ortak.ortakNo}) kalıcı olarak '
+            'silinecek: görsel, bulut kaydı ve yerel kayıt sırayla silinir. '
+            'Bu işlem GERİ ALINAMAZ.',
+            style: AppTypography.body.copyWith(color: renkler.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Onaylamak için Ortak No\'yu yazın: ${widget.ortak.ortakNo}',
+            style: AppTypography.caption.copyWith(color: renkler.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            onChanged: (String _) => setState(() {}),
+            decoration: const InputDecoration(labelText: 'Ortak No'),
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: renkler.error),
+          onPressed: _onayliMi ? () => Navigator.of(context).pop(true) : null,
+          child: const Text('Kalıcı Sil'),
+        ),
+      ],
     );
   }
 }

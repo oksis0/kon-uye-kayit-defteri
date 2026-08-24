@@ -19,6 +19,9 @@ class DefterSatiriDao extends DatabaseAccessor<AppVeritabani>
         .watch();
   }
 
+  /// Yedekleme için — tüm ortakların tüm satırları (PLAN.md §11).
+  Future<List<DefterSatiriSatiri>> tumunuGetir() => select(defterSatirlari).get();
+
   Future<int> ekle(DefterSatirlariCompanion satir) =>
       into(defterSatirlari).insert(satir);
 

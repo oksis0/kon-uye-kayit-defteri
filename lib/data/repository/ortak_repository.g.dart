@@ -49,7 +49,7 @@ final class OrtakRepositoryProvider
   }
 }
 
-String _$ortakRepositoryHash() => r'f892e715c1a9f269943b4da7281c0e88548d9b32';
+String _$ortakRepositoryHash() => r'b1cea715175310ec6d46fa6c36ea9016a00a417f';
 
 /// Uygulama açılışında BİR KEZ çalışır (app.dart'ta `ref.watch` edilir,
 /// `keepAlive` sayesinde tekrar tetiklenmez). Bulut yapılandırılmamışsa
@@ -93,4 +93,4 @@ final class BaslangicSenkronuProvider
   }
 }
 
-String _$baslangicSenkronuHash() => r'0d4938a08885dc0137610a72446bf924c9be2455';
+String _$baslangicSenkronuHash() => r'a7952d9162bc2a43d3179496f92af25711b790b5';
