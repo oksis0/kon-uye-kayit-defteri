@@ -61,112 +61,83 @@ OcrSonucu azureSonucunuAyristir(Map<String, dynamic> azureYaniti) {
   }
 
   // 1) Kimlik tablosundan alanları çıkar (varsa)
-  final Map<String, OcrAlan> kimlikHucresiAlanlari = kimlikTablosu != null
+  final _KimlikTabloCikti kimlikCikti = kimlikTablosu != null
       ? _kimlikTablosundanCikar(kimlikTablosu, kelimeler)
-      : const <String, OcrAlan>{};
+      : const _KimlikTabloCikti(<String, OcrAlan>{}, <String>{});
+  final Map<String, OcrAlan> kimlikHucresiAlanlari = kimlikCikti.alanlar;
+  final Set<String> gorulenKimlikAlanlari = kimlikCikti.gorulenAlanlar;
 
   // 2) Satırlardan etiket eşleyici ile alanları bul
   OcrAlan? satirdaBul(
     List<String> etiketVaryasyonlari, {
-    bool sadeceMetin = false,
     bool sadeceSayi = false,
   }) =>
       _alanBul(
         satirlar,
         kelimeler,
         etiketVaryasyonlari,
-        sadeceMetin: sadeceMetin,
         sadeceSayi: sadeceSayi,
       );
 
-  bool etiketSayfadaVarMi(List<String> etiketVaryasyonlari) {
-    if (kimlikTablosu != null) {
-      final List<dynamic> hucreler = (kimlikTablosu['cells'] as List?) ?? const <dynamic>[];
-      for (final Object? h in hucreler) {
-        if (h is! Map) continue;
-        final String c = (h['content'] as String?)?.toLowerCase() ?? '';
-        for (final String e in etiketVaryasyonlari) {
-          if (c.contains(e.toLowerCase())) return true;
-        }
-      }
-    }
-    return satirlar.any((_Satir s) => _satirEtiketMi(s.metin, etiketVaryasyonlari));
-  }
-
   // 3) Çapa tabanlı fallback yardımcısı — etiket/tablo bulamazsa koordinat bölgesinden ara
-  OcrAlan? capaIleBul(
-    String alanAdi,
-    List<String> etiketVaryasyonlari, {
-    bool sadeceMetin = false,
-    bool sadeceSayi = false,
-  }) {
-    // Eğer etiket sayfada/tabloda zaten MEVCUTSA ve değeri bulunamadıysa,
-    // bu alan belgede boş bırakılmıştır. Asla komşu satırların değerini çalma!
-    if (etiketSayfadaVarMi(etiketVaryasyonlari)) return null;
-
+  OcrAlan? capaIleBul(String alanAdi) {
     return _capaBolgeSindeBul(
       satirlar,
       kelimeler,
       sayfaW,
       sayfaH,
       alanAdi,
-      sadeceMetin: sadeceMetin,
-      sadeceSayi: sadeceSayi,
     );
   }
 
+  // Akıllı alan çözümleyici: Eğer kimlik tablosunda bu alanın satırı/etiketi varsa
+  // (hücre içeriği boş olsa dahi), tablodaki değeri (veya boşsa null) kullanır.
+  // Sadece tabloda bulunmayan alanlar için satır/çapa fallback'i devreye girer.
+  OcrAlan? alanCoz(
+    String alanAdi,
+    List<String> etiketVaryasyonlari, {
+    bool sadeceSayi = false,
+  }) {
+    if (gorulenKimlikAlanlari.contains(alanAdi)) {
+      return kimlikHucresiAlanlari[alanAdi];
+    }
+    return kimlikHucresiAlanlari[alanAdi] ??
+        satirdaBul(etiketVaryasyonlari, sadeceSayi: sadeceSayi) ??
+        capaIleBul(alanAdi);
+  }
+
   // Ortak No
-  final OcrAlan? ortakNo = kimlikHucresiAlanlari['ortakNo'] ??
-      satirdaBul(_ortakNoVaryasyonlari, sadeceSayi: true) ??
-      capaIleBul('ortakNo', _ortakNoVaryasyonlari, sadeceSayi: true);
+  final OcrAlan? ortakNo = alanCoz('ortakNo', _ortakNoVaryasyonlari, sadeceSayi: true);
 
   // Sayfa No
-  final OcrAlan? sayfaNo = kimlikHucresiAlanlari['sayfaNo'] ??
-      satirdaBul(_sayfaNoVaryasyonlari, sadeceSayi: true) ??
-      capaIleBul('sayfaNo', _sayfaNoVaryasyonlari, sadeceSayi: true);
+  final OcrAlan? sayfaNo = alanCoz('sayfaNo', _sayfaNoVaryasyonlari, sadeceSayi: true);
 
   // TC Kimlik No
   final OcrAlan? tcKimlikNo = _tcKimlikNoBul(satirlar, kelimeler, kimlikHucresiAlanlari);
 
   // Ad Soyad
-  final OcrAlan? adSoyad = kimlikHucresiAlanlari['adSoyad'] ??
-      satirdaBul(_adSoyadVaryasyonlari, sadeceMetin: true) ??
-      capaIleBul('adSoyad', _adSoyadVaryasyonlari, sadeceMetin: true);
+  final OcrAlan? adSoyad = alanCoz('adSoyad', _adSoyadVaryasyonlari);
 
   // Baba Adı
-  final OcrAlan? babaAdi = kimlikHucresiAlanlari['babaAdi'] ??
-      satirdaBul(_babaAdiVaryasyonlari, sadeceMetin: true) ??
-      capaIleBul('babaAdi', _babaAdiVaryasyonlari, sadeceMetin: true);
+  final OcrAlan? babaAdi = alanCoz('babaAdi', _babaAdiVaryasyonlari);
 
   // Doğum Yeri
-  final OcrAlan? dogumYeri = kimlikHucresiAlanlari['dogumYeri'] ??
-      satirdaBul(_dogumYeriVaryasyonlari, sadeceMetin: true) ??
-      capaIleBul('dogumYeri', _dogumYeriVaryasyonlari, sadeceMetin: true);
+  final OcrAlan? dogumYeri = alanCoz('dogumYeri', _dogumYeriVaryasyonlari);
 
   // Doğum Tarihi
-  final OcrAlan? dogumTarihi = kimlikHucresiAlanlari['dogumTarihi'] ??
-      satirdaBul(_dogumTarihiVaryasyonlari) ??
-      capaIleBul('dogumTarihi', _dogumTarihiVaryasyonlari);
+  final OcrAlan? dogumTarihi = alanCoz('dogumTarihi', _dogumTarihiVaryasyonlari);
 
   // Giriş Tarihi
-  final OcrAlan? girisTarihi = kimlikHucresiAlanlari['girisTarihi'] ??
-      satirdaBul(_girisTarihiVaryasyonlari) ??
-      capaIleBul('girisTarihi', _girisTarihiVaryasyonlari);
+  final OcrAlan? girisTarihi = alanCoz('girisTarihi', _girisTarihiVaryasyonlari);
 
   // Çıkış Tarihi
-  final OcrAlan? cikisTarihi = kimlikHucresiAlanlari['cikisTarihi'] ??
-      satirdaBul(_cikisTarihiVaryasyonlari) ??
-      capaIleBul('cikisTarihi', _cikisTarihiVaryasyonlari);
+  final OcrAlan? cikisTarihi = alanCoz('cikisTarihi', _cikisTarihiVaryasyonlari);
 
   // İkamet Adresi
-  final OcrAlan? ikametAdresi = kimlikHucresiAlanlari['ikametAdresi'] ??
-      satirdaBul(_ikametAdresiVaryasyonlari) ??
-      capaIleBul('ikametAdresi', _ikametAdresiVaryasyonlari, sadeceMetin: true);
+  final OcrAlan? ikametAdresi = alanCoz('ikametAdresi', _ikametAdresiVaryasyonlari);
 
   // Nüfusa Kayıtlı Olduğu Yer
-  final OcrAlan? nufusKayitYeri = kimlikHucresiAlanlari['nufusKayitYeri'] ??
-      satirdaBul(_nufusKayitYeriVaryasyonlari) ??
-      capaIleBul('nufusKayitYeri', _nufusKayitYeriVaryasyonlari, sadeceMetin: true);
+  final OcrAlan? nufusKayitYeri = alanCoz('nufusKayitYeri', _nufusKayitYeriVaryasyonlari);
 
   // Tablo satırlarını dinamik sütun eşleme ile çıkar
   final List<DefterSatiri> sermayeSatirlari = sermayeTablosu != null
@@ -302,8 +273,10 @@ const List<String> _tumEtiketler = <String>[
   'doğum tarihi', 'dogum tarihi', 'giriş tarihi', 'giris tarihi',
   'çıkış tarihi', 'cikis tarihi', 'ikamet adresi', 'ikamet', 'ikametgah',
   'nüfusa', 'nufusa', 'nüfusta', 'nufusta', 'nüfus', 'nufus',
-  't.c.', 'tc', 'kimlik', 'imza yeri', 'sayfa no', 'karar', 'yevmiye',
-  'sermaye', 'ödeme', 'odeme', 'fotoğraf', 'fotograf',
+  't.c.', 'tc', 'kimlik', 'imza yeri', 'sayfa no',
+  'yönetim', 'yonetim', 'kurulu', 'karar', 'dilekçe', 'dilekce',
+  'makbuz', 'yevmiye', 'açıklama', 'aciklama', 'miktarı', 'miktari', 'yekün', 'yekun',
+  'sermaye', 'ödeme', 'odeme', 'fotoğraf', 'fotograf', 'lira', 'kr.',
 ];
 
 const double _varsayilanGuven = 0.75;
@@ -444,12 +417,19 @@ bool _tabloOdemeMi(Map<String, dynamic> tablo) {
 // Kimlik Tablosu Ayrıştırma
 // ---------------------------------------------------------------------
 
-Map<String, OcrAlan> _kimlikTablosundanCikar(
+class _KimlikTabloCikti {
+  const _KimlikTabloCikti(this.alanlar, this.gorulenAlanlar);
+  final Map<String, OcrAlan> alanlar;
+  final Set<String> gorulenAlanlar;
+}
+
+_KimlikTabloCikti _kimlikTablosundanCikar(
   Map<String, dynamic> tablo,
   List<_KelimeGuveni> kelimeler,
 ) {
   final List<dynamic> hucreler = (tablo['cells'] as List?) ?? const <dynamic>[];
   final Map<String, OcrAlan> sonuc = <String, OcrAlan>{};
+  final Set<String> gorulenAlanlar = <String>{};
 
   final Map<int, Map<int, Map<String, dynamic>>> hucreGrid =
       <int, Map<int, Map<String, dynamic>>>{};
@@ -476,15 +456,28 @@ Map<String, OcrAlan> _kimlikTablosundanCikar(
       if (lower.isEmpty) continue;
 
       // Değer hücresi: aynı satırdaki sağ hücreler (c+1 veya c+2).
-      // Asla alt satırdan (r+1) değer çekilmez — her satır bağımsız bir alandır!
-      Map<String, dynamic>? degerHucre = hucreGrid[r]?[c + 1];
-      String deger = (degerHucre?['content'] as String?)?.trim() ?? '';
-      if (deger.isEmpty && hucreGrid[r]?[c + 2] != null) {
-        degerHucre = hucreGrid[r]?[c + 2];
+      // Eğer aynı satırda sağ hücre varsa (boş olsa bile), bu hücre o satırın değer alanıdır;
+      // alt satırdan veri çalınmamalıdır. Sadece yatay başlık tablosunda (örn. 2 satırlı:
+      // r=0 başlıklar, r=1 değerler) alt hücreye bakılır.
+      Map<String, dynamic>? degerHucre;
+      String deger = '';
+      if (hucreGrid[r]?.containsKey(c + 1) ?? false) {
+        degerHucre = hucreGrid[r]?[c + 1];
         deger = (degerHucre?['content'] as String?)?.trim() ?? '';
+        if (deger.isEmpty && (hucreGrid[r]?.containsKey(c + 2) ?? false)) {
+          degerHucre = hucreGrid[r]?[c + 2];
+          deger = (degerHucre?['content'] as String?)?.trim() ?? '';
+        }
+      } else if (hucreGrid[r + 1]?[c] != null) {
+        // Sağda hücre yoksa, alt satırdaki hücreye bak (eğer başka bir etiket değilse)
+        final String altIcerik = (hucreGrid[r + 1]![c]!['content'] as String?)?.trim() ?? '';
+        if (altIcerik.isNotEmpty && !_baskaEtiketMi(altIcerik)) {
+          degerHucre = hucreGrid[r + 1]?[c];
+          deger = altIcerik;
+        }
       }
 
-      // Eğer sağ hücrelerde değer yoksa ama hücrenin kendi içinde etiket+değer
+      // Eğer sağ veya alt hücrelerde değer yoksa ama hücrenin kendi içinde etiket+değer
       // birleşmişse (örn: "Nüfusa Kayıtlı Olduğu Yer KONAK" veya "Ortak No: 1011")
       if (deger.isEmpty) {
         final String? kendiDegeri = _etiketSonrasiniAl(icerik, <String>[
@@ -505,16 +498,12 @@ Map<String, OcrAlan> _kimlikTablosundanCikar(
 
       // Değer başındaki iki nokta, çizgi, tırnak vb. temizliği
       deger = deger.replaceFirst(RegExp(r'^[:\-–—"„“”\/\.\\\s]+'), '').trim();
-      if (deger.isEmpty) continue;
 
-      final _Kutu? kutu = _Kutu.poligondenOlustur(degerHucre?['polygon']);
-      final double guven = kutu != null ? _guvenHesapla(kutu, kelimeler) : 0.85;
-      final OcrAlan alan = OcrAlan(metin: deger, guven: guven);
-
+      String? alanTuru;
       if (lower.contains('baba ad') || lower == 'baba') {
-        sonuc['babaAdi'] ??= alan;
+        alanTuru = 'babaAdi';
       } else if (lower.contains('dogum yer') || lower.contains('doğum yer')) {
-        sonuc['dogumYeri'] ??= alan;
+        alanTuru = 'dogumYeri';
       } else if (lower.contains('dogum tarih') ||
           lower.contains('doğum tarih') ||
           (lower.contains('tarih') &&
@@ -522,28 +511,37 @@ Map<String, OcrAlan> _kimlikTablosundanCikar(
               !lower.contains('giriş') &&
               !lower.contains('cikis') &&
               !lower.contains('çıkış'))) {
-        sonuc['dogumTarihi'] ??= alan;
+        alanTuru = 'dogumTarihi';
       } else if (lower.contains('giris') || lower.contains('giriş')) {
-        sonuc['girisTarihi'] ??= alan;
+        alanTuru = 'girisTarihi';
       } else if (lower.contains('cikis') || lower.contains('çıkış')) {
-        sonuc['cikisTarihi'] ??= alan;
+        alanTuru = 'cikisTarihi';
       } else if (lower.contains('nufus') || lower.contains('nüfus')) {
-        sonuc['nufusKayitYeri'] ??= alan;
+        alanTuru = 'nufusKayitYeri';
       } else if (lower.contains('ikamet') || lower.contains('adres')) {
-        sonuc['ikametAdresi'] ??= alan;
-      } else if (lower.contains('ad') && lower.contains('soyad')) {
-        sonuc['adSoyad'] ??= alan;
+        alanTuru = 'ikametAdresi';
+      } else if (lower.contains('ad') || lower.contains('soyad')) {
+        alanTuru = 'adSoyad';
       } else if (lower.contains('sayfa no') || lower.contains('sayfa')) {
-        sonuc['sayfaNo'] ??= alan;
+        alanTuru = 'sayfaNo';
       } else if (lower.contains('t.c') || lower.contains('kimlik no') || lower == 'tc') {
-        sonuc['tcKimlikNo'] ??= alan;
-      } else if (lower.contains('ortak no') || lower == 'no') {
-        sonuc['ortakNo'] ??= alan;
+        alanTuru = 'tcKimlikNo';
+      } else if (lower.contains('ortak no') || lower == 'no' || lower.contains('üye no') || lower.contains('sıra no')) {
+        alanTuru = 'ortakNo';
+      }
+
+      if (alanTuru != null) {
+        gorulenAlanlar.add(alanTuru);
+        if (deger.isNotEmpty) {
+          final _Kutu? kutu = _Kutu.poligondenOlustur(degerHucre?['polygon']);
+          final double guven = kutu != null ? _guvenHesapla(kutu, kelimeler) : 0.85;
+          sonuc[alanTuru] ??= OcrAlan(metin: deger, guven: guven);
+        }
       }
     }
   }
 
-  return sonuc;
+  return _KimlikTabloCikti(sonuc, gorulenAlanlar);
 }
 
 OcrAlan? _tcKimlikNoBul(
@@ -611,24 +609,31 @@ String _temizleEtiket(String s) =>
 
 bool _baskaEtiketMi(String metin) {
   final String temiz = _temizleEtiket(metin).toLowerCase();
-  return _tumEtiketler.any((String e) => temiz.startsWith(e));
-}
-
-bool _harfIceriyorMu(String metin) => RegExp(r'[a-zA-ZçğıöşüÇĞİÖŞÜ]').hasMatch(metin);
-
-bool _rakamIceriyorMu(String metin) => RegExp(r'\d').hasMatch(metin);
-
-double _rakamOrani(String metin) {
-  if (metin.isEmpty) return 0;
-  final int rakamSayisi = metin.runes.where((int c) => c >= 48 && c <= 57).length;
-  return rakamSayisi / metin.length;
+  for (final String e in _tumEtiketler) {
+    if (e.length <= 4) {
+      if (temiz == e ||
+          temiz == '$e:' ||
+          temiz == '$e.' ||
+          temiz.startsWith('$e :') ||
+          temiz.startsWith('$e:') ||
+          temiz.startsWith('$e-') ||
+          temiz.startsWith('$e -') ||
+          temiz.startsWith('$e ')) {
+        return true;
+      }
+    } else {
+      if (temiz.startsWith(e)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 OcrAlan? _alanBul(
   List<_Satir> satirlar,
   List<_KelimeGuveni> kelimeler,
   List<String> etiketVaryasyonlari, {
-  bool sadeceMetin = false,
   bool sadeceSayi = false,
 }) {
   for (final _Satir etiketSatiri in satirlar) {
@@ -636,28 +641,28 @@ OcrAlan? _alanBul(
 
     // 1) Aynı satırda etiketten sonra metin var mı? ("Ortak No: 147")
     final String? ayniSatirdakiDeger = _etiketSonrasiniAl(etiketSatiri.metin, etiketVaryasyonlari);
-    if (ayniSatirdakiDeger != null) {
-      bool uygun = true;
-      if (sadeceMetin && (!_harfIceriyorMu(ayniSatirdakiDeger) || _rakamOrani(ayniSatirdakiDeger) > 0.3)) {
-        uygun = false;
-      }
-      if (sadeceSayi && (!_rakamIceriyorMu(ayniSatirdakiDeger) || ayniSatirdakiDeger.length > 10)) {
-        uygun = false;
-      }
-
-      if (uygun) {
+    if (ayniSatirdakiDeger != null && ayniSatirdakiDeger.trim().isNotEmpty) {
+      if (!sadeceSayi) {
         return OcrAlan(
-          metin: ayniSatirdakiDeger,
+          metin: ayniSatirdakiDeger.trim(),
           guven: _guvenHesapla(etiketSatiri.kutu, kelimeler),
         );
+      } else {
+        final String sadeceRakam = ayniSatirdakiDeger.replaceAll(RegExp(r'\D'), '');
+        // Ortak No / Sayfa No: 1-8 basamaklıdır, 11 haneli TC No olamaz
+        if (sadeceRakam.isNotEmpty && sadeceRakam.length <= 8 && sadeceRakam.length != 11) {
+          return OcrAlan(
+            metin: ayniSatirdakiDeger.trim(),
+            guven: _guvenHesapla(etiketSatiri.kutu, kelimeler),
+          );
+        }
       }
     }
 
-    // 2) Aynı yatay bantta sağdaki en yakın satırı bul
+    // 2) Aynı yatay bantta sağdaki veya alttaki en yakın satırı bul
     final _Satir? degerSatiri = _yakinDegerSatiriniBul(
       etiketSatiri,
       satirlar,
-      sadeceMetin: sadeceMetin,
       sadeceSayi: sadeceSayi,
     );
     if (degerSatiri != null) {
@@ -694,7 +699,6 @@ String? _etiketSonrasiniAl(String satirMetni, List<String> etiketVaryasyonlari) 
 _Satir? _yakinDegerSatiriniBul(
   _Satir etiketSatiri,
   List<_Satir> tumSatirlar, {
-  bool sadeceMetin = false,
   bool sadeceSayi = false,
 }) {
   _Satir? enYakinSagdaki;
@@ -703,14 +707,10 @@ _Satir? _yakinDegerSatiriniBul(
   for (final _Satir aday in tumSatirlar) {
     if (identical(aday, etiketSatiri)) continue;
     if (_baskaEtiketMi(aday.metin)) continue;
-
-    if (sadeceMetin) {
-      if (!_harfIceriyorMu(aday.metin) || _rakamOrani(aday.metin) > 0.3) {
-        continue;
-      }
-    }
     if (sadeceSayi) {
-      if (!_rakamIceriyorMu(aday.metin) || aday.metin.length > 10) {
+      final String sadeceRakam = aday.metin.replaceAll(RegExp(r'\D'), '');
+      // Ortak No / Sayfa No: 1-8 basamaklıdır, 11 haneli TC No olamaz
+      if (sadeceRakam.isEmpty || sadeceRakam.length > 8 || sadeceRakam.length == 11) {
         continue;
       }
     }
@@ -722,14 +722,14 @@ _Satir? _yakinDegerSatiriniBul(
     );
     final double dMerkezY = (aday.kutu.merkezY - etiketSatiri.kutu.merkezY).abs();
     final double minH = math.min(aday.kutu.yukseklik, etiketSatiri.kutu.yukseklik);
-    final bool ayniBant = yCakisma > minH * 0.25 || dMerkezY <= minH * 0.5;
+    final bool ayniBant = yCakisma > minH * 0.25 || dMerkezY <= minH * 0.55;
 
     // Sağda olma (küçük açı/eğiklik toleransı ile)
-    final bool sagda = aday.kutu.minX >= etiketSatiri.kutu.maxX - minH * 0.3;
+    final bool sagda = aday.kutu.minX >= etiketSatiri.kutu.maxX - minH * 0.4;
 
     if (ayniBant && sagda) {
       final double mesafe = aday.kutu.minX - etiketSatiri.kutu.maxX;
-      if (mesafe < enKisaYatayMesafe && mesafe < 2000) {
+      if (mesafe < enKisaYatayMesafe) {
         enKisaYatayMesafe = mesafe;
         enYakinSagdaki = aday;
       }
@@ -744,23 +744,18 @@ _Satir? _yakinDegerSatiriniBul(
   for (final _Satir aday in tumSatirlar) {
     if (identical(aday, etiketSatiri)) continue;
     if (_baskaEtiketMi(aday.metin)) continue;
-
-    if (sadeceMetin) {
-      if (!_harfIceriyorMu(aday.metin) || _rakamOrani(aday.metin) > 0.3) {
-        continue;
-      }
-    }
     if (sadeceSayi) {
-      if (!_rakamIceriyorMu(aday.metin) || aday.metin.length > 10) {
+      final String sadeceRakam = aday.metin.replaceAll(RegExp(r'\D'), '');
+      if (sadeceRakam.isEmpty || sadeceRakam.length > 8 || sadeceRakam.length == 11) {
         continue;
       }
     }
 
-    final bool altta = aday.kutu.minY > etiketSatiri.kutu.maxY - 5;
+    final bool altta = aday.kutu.minY > etiketSatiri.kutu.maxY - 10;
     final bool xHizali =
-        (aday.kutu.minX - etiketSatiri.kutu.minX).abs() < etiketSatiri.kutu.yukseklik * 1.5;
+        (aday.kutu.minX - etiketSatiri.kutu.minX).abs() < etiketSatiri.kutu.yukseklik * 3.0;
     final double mesafe = aday.kutu.minY - etiketSatiri.kutu.maxY;
-    if (altta && xHizali && mesafe < enKisaDikeyMesafe && mesafe < etiketSatiri.kutu.yukseklik * 3.5) {
+    if (altta && xHizali && mesafe < enKisaDikeyMesafe && mesafe < etiketSatiri.kutu.yukseklik * 4.0) {
       enKisaDikeyMesafe = mesafe;
       enYakinAltta = aday;
     }
@@ -957,18 +952,18 @@ class _NormalBolge {
 /// "ORTAK PAY DEFTERİ" başlığı çapa; ofsetler bu başlığın merkez Y'sinden.
 const Map<String, _NormalBolge> _alanBolgeleri = <String, _NormalBolge>{
   // Üst satır: Ortak No ve Sayfa No — başlığın hemen altında
-  'ortakNo':        _NormalBolge(0.18, 0.010, 0.50, 0.038),
-  'sayfaNo':        _NormalBolge(0.65, 0.010, 0.95, 0.038),
+  'ortakNo':        _NormalBolge(0.15, 0.005, 0.52, 0.045),
+  'sayfaNo':        _NormalBolge(0.60, 0.005, 0.95, 0.045),
   // Adı Soyadı — ortak no'nun altında, geniş bant
-  'adSoyad':        _NormalBolge(0.22, 0.030, 0.72, 0.055),
+  'adSoyad':        _NormalBolge(0.20, 0.025, 0.78, 0.060),
   // Kimlik tablosu satırları — değerler tablonun sağ sütununda
-  'babaAdi':        _NormalBolge(0.50, 0.048, 0.88, 0.065),
-  'dogumYeri':      _NormalBolge(0.50, 0.066, 0.88, 0.080),
-  'dogumTarihi':    _NormalBolge(0.50, 0.081, 0.88, 0.096),
-  'girisTarihi':    _NormalBolge(0.50, 0.097, 0.88, 0.112),
-  'cikisTarihi':    _NormalBolge(0.50, 0.113, 0.88, 0.128),
-  'ikametAdresi':   _NormalBolge(0.50, 0.129, 0.88, 0.144),
-  'nufusKayitYeri': _NormalBolge(0.50, 0.145, 0.88, 0.168),
+  'babaAdi':        _NormalBolge(0.45, 0.042, 0.90, 0.070),
+  'dogumYeri':      _NormalBolge(0.45, 0.060, 0.90, 0.085),
+  'dogumTarihi':    _NormalBolge(0.45, 0.075, 0.90, 0.102),
+  'girisTarihi':    _NormalBolge(0.45, 0.090, 0.90, 0.118),
+  'cikisTarihi':    _NormalBolge(0.45, 0.108, 0.90, 0.125),
+  'ikametAdresi':   _NormalBolge(0.45, 0.120, 0.90, 0.138),
+  'nufusKayitYeri': _NormalBolge(0.45, 0.138, 0.90, 0.165),
 };
 
 /// "ORTAK PAY DEFTERİ" başlığının merkez Y'sini bulur — koordinat çipası.
@@ -990,10 +985,8 @@ OcrAlan? _capaBolgeSindeBul(
   List<_KelimeGuveni> kelimeler,
   double sayfaW,
   double sayfaH,
-  String alanAdi, {
-  bool sadeceMetin = false,
-  bool sadeceSayi = false,
-}) {
+  String alanAdi,
+) {
   final _NormalBolge? bolge = _alanBolgeleri[alanAdi];
   if (bolge == null || sayfaW <= 0 || sayfaH <= 0) return null;
 
@@ -1012,9 +1005,13 @@ OcrAlan? _capaBolgeSindeBul(
     if (s.kutu.merkezY < absMinY || s.kutu.merkezY > absMaxY) continue;
     // Etiket satırlarını değer olarak alma
     if (_baskaEtiketMi(s.metin)) continue;
-    // Tip sınırlamaları
-    if (sadeceMetin && (!_harfIceriyorMu(s.metin) || _rakamOrani(s.metin) > 0.3)) continue;
-    if (sadeceSayi && (!_rakamIceriyorMu(s.metin) || s.metin.length > 10)) continue;
+    // Ortak No ve Sayfa No: 1-8 basamaklı sayı olmalı, 11 haneli TC No olamaz
+    if (alanAdi == 'ortakNo' || alanAdi == 'sayfaNo') {
+      final String sadeceRakam = s.metin.replaceAll(RegExp(r'\D'), '');
+      if (sadeceRakam.isEmpty || sadeceRakam.length > 8 || sadeceRakam.length == 11) {
+        continue;
+      }
+    }
     adaylar.add(s);
   }
 
