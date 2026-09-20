@@ -5,6 +5,7 @@ import 'package:csv/csv.dart';
 import 'package:intl/intl.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/util/csv_guvenlik.dart';
 import '../../core/util/para_bicim.dart';
 import '../yerel/dao/meta_dao.dart';
 import '../yerel/veritabani.dart';
@@ -121,20 +122,20 @@ class YedekRepository {
       ],
       for (final OrtakSatiri o in ortaklar)
         <dynamic>[
-          o.ortakNo,
-          o.adSoyad,
-          o.babaAdi ?? '',
-          o.dogumYeri ?? '',
-          o.dogumTarihiHam ?? '',
-          o.girisTarihiHam ?? '',
-          o.cikisTarihiHam ?? '',
-          o.ikametAdresi ?? '',
-          o.nufusKayitYeri ?? '',
+          csvFormulKorumasi(o.ortakNo),
+          csvFormulKorumasi(o.adSoyad),
+          csvFormulKorumasi(o.babaAdi),
+          csvFormulKorumasi(o.dogumYeri),
+          csvFormulKorumasi(o.dogumTarihiHam),
+          csvFormulKorumasi(o.girisTarihiHam),
+          csvFormulKorumasi(o.cikisTarihiHam),
+          csvFormulKorumasi(o.ikametAdresi),
+          csvFormulKorumasi(o.nufusKayitYeri),
           o.aktif ? 'Evet' : 'Hayır',
-          o.pasifNedeni ?? '',
+          csvFormulKorumasi(o.pasifNedeni),
         ],
     ];
-    return const ListToCsvConverter().convert(satirlar);
+    return '\uFEFF${const ListToCsvConverter().convert(satirlar)}';
   }
 
   String _satirlarCsv(List<OrtakSatiri> ortaklar, List<DefterSatiriSatiri> satirlar) {
@@ -146,26 +147,31 @@ class YedekRepository {
       <String>['Ortak No', 'Tür', 'Tarih', 'No', 'Mad.', 'Açıklama', 'Miktar', 'Yekün'],
       for (final DefterSatiriSatiri s in satirlar)
         <dynamic>[
-          ortakNoTablosu[s.ortakId] ?? s.ortakId,
+          csvFormulKorumasi(ortakNoTablosu[s.ortakId] ?? s.ortakId),
           s.tur.etiket,
-          s.tarihHam ?? '',
-          s.no ?? '',
-          s.madde ?? '',
-          s.aciklama ?? '',
+          csvFormulKorumasi(s.tarihHam),
+          csvFormulKorumasi(s.no),
+          csvFormulKorumasi(s.madde),
+          csvFormulKorumasi(s.aciklama),
           kurusuBicimlendir(s.miktarKurus),
           kurusuBicimlendir(s.yekunKurus),
         ],
     ];
-    return const ListToCsvConverter().convert(csvSatirlari);
+    return '\uFEFF${const ListToCsvConverter().convert(csvSatirlari)}';
   }
 
   String _gorselListesiCsv(List<OrtakSatiri> ortaklar) {
     final List<List<dynamic>> satirlar = <List<dynamic>>[
       <String>['Ortak No', 'Adı Soyadı', 'R2 Anahtarı'],
       for (final OrtakSatiri o in ortaklar)
-        if (o.belgeR2Anahtari != null) <dynamic>[o.ortakNo, o.adSoyad, o.belgeR2Anahtari],
+        if (o.belgeR2Anahtari != null)
+          <dynamic>[
+            csvFormulKorumasi(o.ortakNo),
+            csvFormulKorumasi(o.adSoyad),
+            csvFormulKorumasi(o.belgeR2Anahtari),
+          ],
     ];
-    return const ListToCsvConverter().convert(satirlar);
+    return '\uFEFF${const ListToCsvConverter().convert(satirlar)}';
   }
 
   String _ozet(List<OrtakSatiri> ortaklar, List<DefterSatiriSatiri> satirlar, DateTime simdi) {

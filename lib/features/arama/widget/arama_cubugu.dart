@@ -24,15 +24,20 @@ class AramaCubugu extends StatelessWidget {
       decoration: InputDecoration(
         hintText: 'Ortak no, ad soyad, baba adı, adres...',
         prefixIcon: Icon(Icons.search, color: renkler.textSecondary),
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                icon: Icon(Icons.close, color: renkler.textSecondary),
-                onPressed: () {
-                  controller.clear();
-                  onDegisti('');
-                },
-              ),
+        suffixIcon: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (BuildContext context, TextEditingValue value, _) {
+            if (value.text.isEmpty) return const SizedBox.shrink();
+            return IconButton(
+              icon: Icon(Icons.clear, color: renkler.textSecondary, size: 18),
+              tooltip: 'Aramayı Temizle',
+              onPressed: () {
+                controller.clear();
+                onDegisti('');
+              },
+            );
+          },
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.sm + AppSpacing.xs,

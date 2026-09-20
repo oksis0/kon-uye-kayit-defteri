@@ -1,6 +1,15 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../core/util/csv_guvenlik.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
@@ -39,26 +48,20 @@ class AramaEkrani extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ortak Pay Defteri'),
+        title: const Text('KON Üye Kayıt Defteri'),
         actions: <Widget>[
-          IconButton(
-            onPressed: () => context.push('/ayarlar'),
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Ayarlar',
-          ),
-          IconButton(
-            onPressed: () => context.push('/yedek'),
-            icon: const Icon(Icons.backup_outlined),
-            tooltip: 'Yedekleme',
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          if (cokDarEkran)
+          if (!cokDarEkran) ...<Widget>[
             IconButton(
-              onPressed: () => context.push('/ice-aktarma'),
-              icon: const Icon(Icons.folder_open_outlined),
-              tooltip: 'İçe Aktar',
-            )
-          else
+              onPressed: () => context.push('/ayarlar'),
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Ayarlar',
+            ),
+            IconButton(
+              onPressed: () => context.push('/yedek'),
+              icon: const Icon(Icons.backup_outlined),
+              tooltip: 'Yedekleme',
+            ),
+            const SizedBox(width: AppSpacing.xs),
             Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: OutlinedButton.icon(
@@ -67,20 +70,52 @@ class AramaEkrani extends ConsumerWidget {
                 label: const Text('İçe Aktar'),
               ),
             ),
-          Padding(
-            padding: EdgeInsets.only(right: cokDarEkran ? AppSpacing.sm : AppSpacing.md),
-            child: cokDarEkran
-                ? IconButton.filled(
-                    onPressed: () => context.push('/ortak/yeni'),
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Yeni Ortak',
-                  )
-                : FilledButton.icon(
-                    onPressed: () => context.push('/ortak/yeni'),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Yeni Ortak'),
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.md),
+              child: FilledButton.icon(
+                onPressed: () => context.push('/ortak/yeni'),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Yeni Ortak'),
+              ),
+            ),
+          ] else ...<Widget>[
+            IconButton(
+              onPressed: () => context.push('/ice-aktarma'),
+              icon: const Icon(Icons.folder_open_outlined),
+              tooltip: 'İçe Aktar',
+            ),
+            IconButton.filled(
+              onPressed: () => context.push('/ortak/yeni'),
+              icon: const Icon(Icons.add),
+              tooltip: 'Yeni Ortak',
+            ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'Diğer',
+              onSelected: (String rota) => context.push(rota),
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: '/ayarlar',
+                  child: ListTile(
+                    leading: Icon(Icons.settings_outlined),
+                    title: Text('Ayarlar'),
+                    contentPadding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
                   ),
-          ),
+                ),
+                const PopupMenuItem<String>(
+                  value: '/yedek',
+                  child: ListTile(
+                    leading: Icon(Icons.backup_outlined),
+                    title: Text('Yedekleme'),
+                    contentPadding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: AppSpacing.xs),
+          ],
         ],
       ),
       body: genisEkran ? const _GenisDuzen() : const _DarDuzen(),
@@ -105,6 +140,101 @@ class _AramaVeListeState extends ConsumerState<_AramaVeListe> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _csvDisaAktar(BuildContext context, List<Ortak> ortaklar) async {
+    if (ortaklar.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dışa aktarılacak kayıt bulunamadı.')),
+      );
+      return;
+    }
+
+    try {
+      String? hedefDizin;
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        hedefDizin = await FilePicker.platform.getDirectoryPath(
+          dialogTitle: 'Excel/CSV Dosyasının Kaydedileceği Klasörü Seçin',
+        );
+        if (hedefDizin == null) return;
+      } else {
+        final Directory appDir = await getApplicationDocumentsDirectory();
+        hedefDizin = appDir.path;
+      }
+
+      final String dosyaAdi =
+          'ortak_listesi_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
+      final File hedefDosya = File('$hedefDizin/$dosyaAdi');
+
+      final List<List<dynamic>> satirlar = <List<dynamic>>[
+        <String>[
+          'Ortak No',
+          'Adı Soyadı',
+          'TC Kimlik No',
+          'Durum',
+          'Sayfa No',
+          'Baba Adı',
+          'Doğum Yeri',
+          'Doğum Tarihi',
+          'Giriş Tarihi',
+          'Çıkış Tarihi',
+          'İkamet Adresi',
+          'Nüfusa Kayıtlı Olduğu Yer',
+          'Pasif Nedeni',
+        ],
+        for (final Ortak o in ortaklar)
+          <dynamic>[
+            csvFormulKorumasi(o.ortakNo),
+            csvFormulKorumasi(o.adSoyad),
+            csvFormulKorumasi(o.tcKimlikNo),
+            o.aktif ? 'Aktif' : 'Pasif',
+            csvFormulKorumasi(o.sayfaNo),
+            csvFormulKorumasi(o.babaAdi),
+            csvFormulKorumasi(o.dogumYeri),
+            csvFormulKorumasi(o.dogumTarihiHam),
+            csvFormulKorumasi(o.girisTarihiHam),
+            csvFormulKorumasi(o.cikisTarihiHam),
+            csvFormulKorumasi(o.ikametAdresi),
+            csvFormulKorumasi(o.nufusKayitYeri),
+            csvFormulKorumasi(o.pasifNedeni),
+          ],
+      ];
+
+      final String csvIcerik = '\uFEFF${const ListToCsvConverter().convert(satirlar)}';
+      await hedefDosya.writeAsString(csvIcerik);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Excel (CSV) dosyası kaydedildi:\n${hedefDosya.path}'),
+            backgroundColor: const Color(0xFF2E7D32),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Aç',
+              textColor: Colors.white,
+              onPressed: () {
+                if (Platform.isMacOS) {
+                  unawaited(Process.run('open', <String>[hedefDosya.path]));
+                } else if (Platform.isWindows) {
+                  unawaited(Process.run('explorer.exe', <String>[hedefDosya.path]));
+                } else if (Platform.isLinux) {
+                  unawaited(Process.run('xdg-open', <String>[hedefDosya.path]));
+                }
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Dışa aktarma hatası: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -145,17 +275,57 @@ class _AramaVeListeState extends ConsumerState<_AramaVeListe> {
                     ),
                   );
                 }
-                return ListView.separated(
-                  itemCount: sonuclar.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (BuildContext context, int index) {
-                    final Ortak ortak = sonuclar[index];
-                    return OrtakKart(
-                      ortak: ortak,
-                      secili: ortak.id == widget.seciliId,
-                      onTap: () => widget.onSecim(ortak),
-                    );
-                  },
+
+                final int toplamSayi = sonuclar.length;
+                final int aktifSayi = sonuclar.where((Ortak o) => o.aktif).length;
+                final int pasifSayi = toplamSayi - aktifSayi;
+
+                return Column(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs, left: AppSpacing.xs),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              '$toplamSayi Ortak ($aktifSayi Aktif${pasifSayi > 0 ? ', $pasifSayi Pasif' : ''})',
+                              style: AppTypography.caption.copyWith(
+                                color: renkler.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Tooltip(
+                            message: 'Listeyi Excel (CSV) olarak indir',
+                            child: TextButton.icon(
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                              icon: const Icon(Icons.file_download_outlined, size: 16),
+                              label: const Text('Excel/CSV', style: TextStyle(fontSize: 12)),
+                              onPressed: () => _csvDisaAktar(context, sonuclar),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: sonuclar.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                        itemBuilder: (BuildContext context, int index) {
+                          final Ortak ortak = sonuclar[index];
+                          return OrtakKart(
+                            ortak: ortak,
+                            secili: ortak.id == widget.seciliId,
+                            onTap: () => widget.onSecim(ortak),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

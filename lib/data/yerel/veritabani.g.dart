@@ -29,6 +29,28 @@ class $OrtaklarTable extends Ortaklar
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _sayfaNoMeta = const VerificationMeta(
+    'sayfaNo',
+  );
+  @override
+  late final GeneratedColumn<String> sayfaNo = GeneratedColumn<String>(
+    'sayfa_no',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tcKimlikNoMeta = const VerificationMeta(
+    'tcKimlikNo',
+  );
+  @override
+  late final GeneratedColumn<String> tcKimlikNo = GeneratedColumn<String>(
+    'tc_kimlik_no',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _adSoyadMeta = const VerificationMeta(
     'adSoyad',
   );
@@ -150,6 +172,17 @@ class $OrtaklarTable extends Ortaklar
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _yerelDosyaYoluMeta = const VerificationMeta(
+    'yerelDosyaYolu',
+  );
+  @override
+  late final GeneratedColumn<String> yerelDosyaYolu = GeneratedColumn<String>(
+    'yerel_dosya_yolu',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _aramaAnahtariMeta = const VerificationMeta(
     'aramaAnahtari',
   );
@@ -256,6 +289,8 @@ class $OrtaklarTable extends Ortaklar
   List<GeneratedColumn> get $columns => [
     id,
     ortakNo,
+    sayfaNo,
+    tcKimlikNo,
     adSoyad,
     babaAdi,
     dogumYeri,
@@ -267,6 +302,7 @@ class $OrtaklarTable extends Ortaklar
     cikisTarihi,
     ikametAdresi,
     nufusKayitYeri,
+    yerelDosyaYolu,
     aramaAnahtari,
     belgeR2Anahtari,
     ocrGuvenOrtalama,
@@ -301,6 +337,21 @@ class $OrtaklarTable extends Ortaklar
       );
     } else if (isInserting) {
       context.missing(_ortakNoMeta);
+    }
+    if (data.containsKey('sayfa_no')) {
+      context.handle(
+        _sayfaNoMeta,
+        sayfaNo.isAcceptableOrUnknown(data['sayfa_no']!, _sayfaNoMeta),
+      );
+    }
+    if (data.containsKey('tc_kimlik_no')) {
+      context.handle(
+        _tcKimlikNoMeta,
+        tcKimlikNo.isAcceptableOrUnknown(
+          data['tc_kimlik_no']!,
+          _tcKimlikNoMeta,
+        ),
+      );
     }
     if (data.containsKey('ad_soyad')) {
       context.handle(
@@ -391,6 +442,15 @@ class $OrtaklarTable extends Ortaklar
         nufusKayitYeri.isAcceptableOrUnknown(
           data['nufus_kayit_yeri']!,
           _nufusKayitYeriMeta,
+        ),
+      );
+    }
+    if (data.containsKey('yerel_dosya_yolu')) {
+      context.handle(
+        _yerelDosyaYoluMeta,
+        yerelDosyaYolu.isAcceptableOrUnknown(
+          data['yerel_dosya_yolu']!,
+          _yerelDosyaYoluMeta,
         ),
       );
     }
@@ -486,6 +546,14 @@ class $OrtaklarTable extends Ortaklar
         DriftSqlType.string,
         data['${effectivePrefix}ortak_no'],
       )!,
+      sayfaNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sayfa_no'],
+      ),
+      tcKimlikNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tc_kimlik_no'],
+      ),
       adSoyad: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}ad_soyad'],
@@ -529,6 +597,10 @@ class $OrtaklarTable extends Ortaklar
       nufusKayitYeri: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}nufus_kayit_yeri'],
+      ),
+      yerelDosyaYolu: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}yerel_dosya_yolu'],
       ),
       aramaAnahtari: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -585,6 +657,8 @@ class $OrtaklarTable extends Ortaklar
 class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
   final String id;
   final String ortakNo;
+  final String? sayfaNo;
+  final String? tcKimlikNo;
   final String adSoyad;
   final String? babaAdi;
   final String? dogumYeri;
@@ -596,6 +670,7 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
   final DateTime? cikisTarihi;
   final String? ikametAdresi;
   final String? nufusKayitYeri;
+  final String? yerelDosyaYolu;
 
   /// Türkçe normalize edilmiş, tüm metin alanlarının birleşimi.
   /// Arama bu sütun üzerinden yapılır (PLAN.md §5).
@@ -611,6 +686,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
   const OrtakSatiri({
     required this.id,
     required this.ortakNo,
+    this.sayfaNo,
+    this.tcKimlikNo,
     required this.adSoyad,
     this.babaAdi,
     this.dogumYeri,
@@ -622,6 +699,7 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     this.cikisTarihi,
     this.ikametAdresi,
     this.nufusKayitYeri,
+    this.yerelDosyaYolu,
     required this.aramaAnahtari,
     this.belgeR2Anahtari,
     this.ocrGuvenOrtalama,
@@ -637,6 +715,12 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['ortak_no'] = Variable<String>(ortakNo);
+    if (!nullToAbsent || sayfaNo != null) {
+      map['sayfa_no'] = Variable<String>(sayfaNo);
+    }
+    if (!nullToAbsent || tcKimlikNo != null) {
+      map['tc_kimlik_no'] = Variable<String>(tcKimlikNo);
+    }
     map['ad_soyad'] = Variable<String>(adSoyad);
     if (!nullToAbsent || babaAdi != null) {
       map['baba_adi'] = Variable<String>(babaAdi);
@@ -668,6 +752,9 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     if (!nullToAbsent || nufusKayitYeri != null) {
       map['nufus_kayit_yeri'] = Variable<String>(nufusKayitYeri);
     }
+    if (!nullToAbsent || yerelDosyaYolu != null) {
+      map['yerel_dosya_yolu'] = Variable<String>(yerelDosyaYolu);
+    }
     map['arama_anahtari'] = Variable<String>(aramaAnahtari);
     if (!nullToAbsent || belgeR2Anahtari != null) {
       map['belge_r2_anahtari'] = Variable<String>(belgeR2Anahtari);
@@ -696,6 +783,12 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     return OrtaklarCompanion(
       id: Value(id),
       ortakNo: Value(ortakNo),
+      sayfaNo: sayfaNo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sayfaNo),
+      tcKimlikNo: tcKimlikNo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tcKimlikNo),
       adSoyad: Value(adSoyad),
       babaAdi: babaAdi == null && nullToAbsent
           ? const Value.absent()
@@ -727,6 +820,9 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
       nufusKayitYeri: nufusKayitYeri == null && nullToAbsent
           ? const Value.absent()
           : Value(nufusKayitYeri),
+      yerelDosyaYolu: yerelDosyaYolu == null && nullToAbsent
+          ? const Value.absent()
+          : Value(yerelDosyaYolu),
       aramaAnahtari: Value(aramaAnahtari),
       belgeR2Anahtari: belgeR2Anahtari == null && nullToAbsent
           ? const Value.absent()
@@ -755,6 +851,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     return OrtakSatiri(
       id: serializer.fromJson<String>(json['id']),
       ortakNo: serializer.fromJson<String>(json['ortakNo']),
+      sayfaNo: serializer.fromJson<String?>(json['sayfaNo']),
+      tcKimlikNo: serializer.fromJson<String?>(json['tcKimlikNo']),
       adSoyad: serializer.fromJson<String>(json['adSoyad']),
       babaAdi: serializer.fromJson<String?>(json['babaAdi']),
       dogumYeri: serializer.fromJson<String?>(json['dogumYeri']),
@@ -766,6 +864,7 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
       cikisTarihi: serializer.fromJson<DateTime?>(json['cikisTarihi']),
       ikametAdresi: serializer.fromJson<String?>(json['ikametAdresi']),
       nufusKayitYeri: serializer.fromJson<String?>(json['nufusKayitYeri']),
+      yerelDosyaYolu: serializer.fromJson<String?>(json['yerelDosyaYolu']),
       aramaAnahtari: serializer.fromJson<String>(json['aramaAnahtari']),
       belgeR2Anahtari: serializer.fromJson<String?>(json['belgeR2Anahtari']),
       ocrGuvenOrtalama: serializer.fromJson<double?>(json['ocrGuvenOrtalama']),
@@ -785,6 +884,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'ortakNo': serializer.toJson<String>(ortakNo),
+      'sayfaNo': serializer.toJson<String?>(sayfaNo),
+      'tcKimlikNo': serializer.toJson<String?>(tcKimlikNo),
       'adSoyad': serializer.toJson<String>(adSoyad),
       'babaAdi': serializer.toJson<String?>(babaAdi),
       'dogumYeri': serializer.toJson<String?>(dogumYeri),
@@ -796,6 +897,7 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
       'cikisTarihi': serializer.toJson<DateTime?>(cikisTarihi),
       'ikametAdresi': serializer.toJson<String?>(ikametAdresi),
       'nufusKayitYeri': serializer.toJson<String?>(nufusKayitYeri),
+      'yerelDosyaYolu': serializer.toJson<String?>(yerelDosyaYolu),
       'aramaAnahtari': serializer.toJson<String>(aramaAnahtari),
       'belgeR2Anahtari': serializer.toJson<String?>(belgeR2Anahtari),
       'ocrGuvenOrtalama': serializer.toJson<double?>(ocrGuvenOrtalama),
@@ -813,6 +915,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
   OrtakSatiri copyWith({
     String? id,
     String? ortakNo,
+    Value<String?> sayfaNo = const Value.absent(),
+    Value<String?> tcKimlikNo = const Value.absent(),
     String? adSoyad,
     Value<String?> babaAdi = const Value.absent(),
     Value<String?> dogumYeri = const Value.absent(),
@@ -824,6 +928,7 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     Value<DateTime?> cikisTarihi = const Value.absent(),
     Value<String?> ikametAdresi = const Value.absent(),
     Value<String?> nufusKayitYeri = const Value.absent(),
+    Value<String?> yerelDosyaYolu = const Value.absent(),
     String? aramaAnahtari,
     Value<String?> belgeR2Anahtari = const Value.absent(),
     Value<double?> ocrGuvenOrtalama = const Value.absent(),
@@ -836,6 +941,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
   }) => OrtakSatiri(
     id: id ?? this.id,
     ortakNo: ortakNo ?? this.ortakNo,
+    sayfaNo: sayfaNo.present ? sayfaNo.value : this.sayfaNo,
+    tcKimlikNo: tcKimlikNo.present ? tcKimlikNo.value : this.tcKimlikNo,
     adSoyad: adSoyad ?? this.adSoyad,
     babaAdi: babaAdi.present ? babaAdi.value : this.babaAdi,
     dogumYeri: dogumYeri.present ? dogumYeri.value : this.dogumYeri,
@@ -855,6 +962,9 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     nufusKayitYeri: nufusKayitYeri.present
         ? nufusKayitYeri.value
         : this.nufusKayitYeri,
+    yerelDosyaYolu: yerelDosyaYolu.present
+        ? yerelDosyaYolu.value
+        : this.yerelDosyaYolu,
     aramaAnahtari: aramaAnahtari ?? this.aramaAnahtari,
     belgeR2Anahtari: belgeR2Anahtari.present
         ? belgeR2Anahtari.value
@@ -873,6 +983,10 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     return OrtakSatiri(
       id: data.id.present ? data.id.value : this.id,
       ortakNo: data.ortakNo.present ? data.ortakNo.value : this.ortakNo,
+      sayfaNo: data.sayfaNo.present ? data.sayfaNo.value : this.sayfaNo,
+      tcKimlikNo: data.tcKimlikNo.present
+          ? data.tcKimlikNo.value
+          : this.tcKimlikNo,
       adSoyad: data.adSoyad.present ? data.adSoyad.value : this.adSoyad,
       babaAdi: data.babaAdi.present ? data.babaAdi.value : this.babaAdi,
       dogumYeri: data.dogumYeri.present ? data.dogumYeri.value : this.dogumYeri,
@@ -900,6 +1014,9 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
       nufusKayitYeri: data.nufusKayitYeri.present
           ? data.nufusKayitYeri.value
           : this.nufusKayitYeri,
+      yerelDosyaYolu: data.yerelDosyaYolu.present
+          ? data.yerelDosyaYolu.value
+          : this.yerelDosyaYolu,
       aramaAnahtari: data.aramaAnahtari.present
           ? data.aramaAnahtari.value
           : this.aramaAnahtari,
@@ -933,6 +1050,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     return (StringBuffer('OrtakSatiri(')
           ..write('id: $id, ')
           ..write('ortakNo: $ortakNo, ')
+          ..write('sayfaNo: $sayfaNo, ')
+          ..write('tcKimlikNo: $tcKimlikNo, ')
           ..write('adSoyad: $adSoyad, ')
           ..write('babaAdi: $babaAdi, ')
           ..write('dogumYeri: $dogumYeri, ')
@@ -944,6 +1063,7 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
           ..write('cikisTarihi: $cikisTarihi, ')
           ..write('ikametAdresi: $ikametAdresi, ')
           ..write('nufusKayitYeri: $nufusKayitYeri, ')
+          ..write('yerelDosyaYolu: $yerelDosyaYolu, ')
           ..write('aramaAnahtari: $aramaAnahtari, ')
           ..write('belgeR2Anahtari: $belgeR2Anahtari, ')
           ..write('ocrGuvenOrtalama: $ocrGuvenOrtalama, ')
@@ -961,6 +1081,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
   int get hashCode => Object.hashAll([
     id,
     ortakNo,
+    sayfaNo,
+    tcKimlikNo,
     adSoyad,
     babaAdi,
     dogumYeri,
@@ -972,6 +1094,7 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
     cikisTarihi,
     ikametAdresi,
     nufusKayitYeri,
+    yerelDosyaYolu,
     aramaAnahtari,
     belgeR2Anahtari,
     ocrGuvenOrtalama,
@@ -988,6 +1111,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
       (other is OrtakSatiri &&
           other.id == this.id &&
           other.ortakNo == this.ortakNo &&
+          other.sayfaNo == this.sayfaNo &&
+          other.tcKimlikNo == this.tcKimlikNo &&
           other.adSoyad == this.adSoyad &&
           other.babaAdi == this.babaAdi &&
           other.dogumYeri == this.dogumYeri &&
@@ -999,6 +1124,7 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
           other.cikisTarihi == this.cikisTarihi &&
           other.ikametAdresi == this.ikametAdresi &&
           other.nufusKayitYeri == this.nufusKayitYeri &&
+          other.yerelDosyaYolu == this.yerelDosyaYolu &&
           other.aramaAnahtari == this.aramaAnahtari &&
           other.belgeR2Anahtari == this.belgeR2Anahtari &&
           other.ocrGuvenOrtalama == this.ocrGuvenOrtalama &&
@@ -1013,6 +1139,8 @@ class OrtakSatiri extends DataClass implements Insertable<OrtakSatiri> {
 class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
   final Value<String> id;
   final Value<String> ortakNo;
+  final Value<String?> sayfaNo;
+  final Value<String?> tcKimlikNo;
   final Value<String> adSoyad;
   final Value<String?> babaAdi;
   final Value<String?> dogumYeri;
@@ -1024,6 +1152,7 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
   final Value<DateTime?> cikisTarihi;
   final Value<String?> ikametAdresi;
   final Value<String?> nufusKayitYeri;
+  final Value<String?> yerelDosyaYolu;
   final Value<String> aramaAnahtari;
   final Value<String?> belgeR2Anahtari;
   final Value<double?> ocrGuvenOrtalama;
@@ -1037,6 +1166,8 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
   const OrtaklarCompanion({
     this.id = const Value.absent(),
     this.ortakNo = const Value.absent(),
+    this.sayfaNo = const Value.absent(),
+    this.tcKimlikNo = const Value.absent(),
     this.adSoyad = const Value.absent(),
     this.babaAdi = const Value.absent(),
     this.dogumYeri = const Value.absent(),
@@ -1048,6 +1179,7 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     this.cikisTarihi = const Value.absent(),
     this.ikametAdresi = const Value.absent(),
     this.nufusKayitYeri = const Value.absent(),
+    this.yerelDosyaYolu = const Value.absent(),
     this.aramaAnahtari = const Value.absent(),
     this.belgeR2Anahtari = const Value.absent(),
     this.ocrGuvenOrtalama = const Value.absent(),
@@ -1062,6 +1194,8 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
   OrtaklarCompanion.insert({
     required String id,
     required String ortakNo,
+    this.sayfaNo = const Value.absent(),
+    this.tcKimlikNo = const Value.absent(),
     required String adSoyad,
     this.babaAdi = const Value.absent(),
     this.dogumYeri = const Value.absent(),
@@ -1073,6 +1207,7 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     this.cikisTarihi = const Value.absent(),
     this.ikametAdresi = const Value.absent(),
     this.nufusKayitYeri = const Value.absent(),
+    this.yerelDosyaYolu = const Value.absent(),
     required String aramaAnahtari,
     this.belgeR2Anahtari = const Value.absent(),
     this.ocrGuvenOrtalama = const Value.absent(),
@@ -1092,6 +1227,8 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
   static Insertable<OrtakSatiri> custom({
     Expression<String>? id,
     Expression<String>? ortakNo,
+    Expression<String>? sayfaNo,
+    Expression<String>? tcKimlikNo,
     Expression<String>? adSoyad,
     Expression<String>? babaAdi,
     Expression<String>? dogumYeri,
@@ -1103,6 +1240,7 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     Expression<DateTime>? cikisTarihi,
     Expression<String>? ikametAdresi,
     Expression<String>? nufusKayitYeri,
+    Expression<String>? yerelDosyaYolu,
     Expression<String>? aramaAnahtari,
     Expression<String>? belgeR2Anahtari,
     Expression<double>? ocrGuvenOrtalama,
@@ -1117,6 +1255,8 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (ortakNo != null) 'ortak_no': ortakNo,
+      if (sayfaNo != null) 'sayfa_no': sayfaNo,
+      if (tcKimlikNo != null) 'tc_kimlik_no': tcKimlikNo,
       if (adSoyad != null) 'ad_soyad': adSoyad,
       if (babaAdi != null) 'baba_adi': babaAdi,
       if (dogumYeri != null) 'dogum_yeri': dogumYeri,
@@ -1128,6 +1268,7 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
       if (cikisTarihi != null) 'cikis_tarihi': cikisTarihi,
       if (ikametAdresi != null) 'ikamet_adresi': ikametAdresi,
       if (nufusKayitYeri != null) 'nufus_kayit_yeri': nufusKayitYeri,
+      if (yerelDosyaYolu != null) 'yerel_dosya_yolu': yerelDosyaYolu,
       if (aramaAnahtari != null) 'arama_anahtari': aramaAnahtari,
       if (belgeR2Anahtari != null) 'belge_r2_anahtari': belgeR2Anahtari,
       if (ocrGuvenOrtalama != null) 'ocr_guven_ortalama': ocrGuvenOrtalama,
@@ -1144,6 +1285,8 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
   OrtaklarCompanion copyWith({
     Value<String>? id,
     Value<String>? ortakNo,
+    Value<String?>? sayfaNo,
+    Value<String?>? tcKimlikNo,
     Value<String>? adSoyad,
     Value<String?>? babaAdi,
     Value<String?>? dogumYeri,
@@ -1155,6 +1298,7 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     Value<DateTime?>? cikisTarihi,
     Value<String?>? ikametAdresi,
     Value<String?>? nufusKayitYeri,
+    Value<String?>? yerelDosyaYolu,
     Value<String>? aramaAnahtari,
     Value<String?>? belgeR2Anahtari,
     Value<double?>? ocrGuvenOrtalama,
@@ -1169,6 +1313,8 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     return OrtaklarCompanion(
       id: id ?? this.id,
       ortakNo: ortakNo ?? this.ortakNo,
+      sayfaNo: sayfaNo ?? this.sayfaNo,
+      tcKimlikNo: tcKimlikNo ?? this.tcKimlikNo,
       adSoyad: adSoyad ?? this.adSoyad,
       babaAdi: babaAdi ?? this.babaAdi,
       dogumYeri: dogumYeri ?? this.dogumYeri,
@@ -1180,6 +1326,7 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
       cikisTarihi: cikisTarihi ?? this.cikisTarihi,
       ikametAdresi: ikametAdresi ?? this.ikametAdresi,
       nufusKayitYeri: nufusKayitYeri ?? this.nufusKayitYeri,
+      yerelDosyaYolu: yerelDosyaYolu ?? this.yerelDosyaYolu,
       aramaAnahtari: aramaAnahtari ?? this.aramaAnahtari,
       belgeR2Anahtari: belgeR2Anahtari ?? this.belgeR2Anahtari,
       ocrGuvenOrtalama: ocrGuvenOrtalama ?? this.ocrGuvenOrtalama,
@@ -1201,6 +1348,12 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     }
     if (ortakNo.present) {
       map['ortak_no'] = Variable<String>(ortakNo.value);
+    }
+    if (sayfaNo.present) {
+      map['sayfa_no'] = Variable<String>(sayfaNo.value);
+    }
+    if (tcKimlikNo.present) {
+      map['tc_kimlik_no'] = Variable<String>(tcKimlikNo.value);
     }
     if (adSoyad.present) {
       map['ad_soyad'] = Variable<String>(adSoyad.value);
@@ -1234,6 +1387,9 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     }
     if (nufusKayitYeri.present) {
       map['nufus_kayit_yeri'] = Variable<String>(nufusKayitYeri.value);
+    }
+    if (yerelDosyaYolu.present) {
+      map['yerel_dosya_yolu'] = Variable<String>(yerelDosyaYolu.value);
     }
     if (aramaAnahtari.present) {
       map['arama_anahtari'] = Variable<String>(aramaAnahtari.value);
@@ -1275,6 +1431,8 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
     return (StringBuffer('OrtaklarCompanion(')
           ..write('id: $id, ')
           ..write('ortakNo: $ortakNo, ')
+          ..write('sayfaNo: $sayfaNo, ')
+          ..write('tcKimlikNo: $tcKimlikNo, ')
           ..write('adSoyad: $adSoyad, ')
           ..write('babaAdi: $babaAdi, ')
           ..write('dogumYeri: $dogumYeri, ')
@@ -1286,6 +1444,7 @@ class OrtaklarCompanion extends UpdateCompanion<OrtakSatiri> {
           ..write('cikisTarihi: $cikisTarihi, ')
           ..write('ikametAdresi: $ikametAdresi, ')
           ..write('nufusKayitYeri: $nufusKayitYeri, ')
+          ..write('yerelDosyaYolu: $yerelDosyaYolu, ')
           ..write('aramaAnahtari: $aramaAnahtari, ')
           ..write('belgeR2Anahtari: $belgeR2Anahtari, ')
           ..write('ocrGuvenOrtalama: $ocrGuvenOrtalama, ')
@@ -3061,6 +3220,8 @@ typedef $$OrtaklarTableCreateCompanionBuilder =
     OrtaklarCompanion Function({
       required String id,
       required String ortakNo,
+      Value<String?> sayfaNo,
+      Value<String?> tcKimlikNo,
       required String adSoyad,
       Value<String?> babaAdi,
       Value<String?> dogumYeri,
@@ -3072,6 +3233,7 @@ typedef $$OrtaklarTableCreateCompanionBuilder =
       Value<DateTime?> cikisTarihi,
       Value<String?> ikametAdresi,
       Value<String?> nufusKayitYeri,
+      Value<String?> yerelDosyaYolu,
       required String aramaAnahtari,
       Value<String?> belgeR2Anahtari,
       Value<double?> ocrGuvenOrtalama,
@@ -3087,6 +3249,8 @@ typedef $$OrtaklarTableUpdateCompanionBuilder =
     OrtaklarCompanion Function({
       Value<String> id,
       Value<String> ortakNo,
+      Value<String?> sayfaNo,
+      Value<String?> tcKimlikNo,
       Value<String> adSoyad,
       Value<String?> babaAdi,
       Value<String?> dogumYeri,
@@ -3098,6 +3262,7 @@ typedef $$OrtaklarTableUpdateCompanionBuilder =
       Value<DateTime?> cikisTarihi,
       Value<String?> ikametAdresi,
       Value<String?> nufusKayitYeri,
+      Value<String?> yerelDosyaYolu,
       Value<String> aramaAnahtari,
       Value<String?> belgeR2Anahtari,
       Value<double?> ocrGuvenOrtalama,
@@ -3158,6 +3323,16 @@ class $$OrtaklarTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get sayfaNo => $composableBuilder(
+    column: $table.sayfaNo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tcKimlikNo => $composableBuilder(
+    column: $table.tcKimlikNo,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get adSoyad => $composableBuilder(
     column: $table.adSoyad,
     builder: (column) => ColumnFilters(column),
@@ -3210,6 +3385,11 @@ class $$OrtaklarTableFilterComposer
 
   ColumnFilters<String> get nufusKayitYeri => $composableBuilder(
     column: $table.nufusKayitYeri,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get yerelDosyaYolu => $composableBuilder(
+    column: $table.yerelDosyaYolu,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3304,6 +3484,16 @@ class $$OrtaklarTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sayfaNo => $composableBuilder(
+    column: $table.sayfaNo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tcKimlikNo => $composableBuilder(
+    column: $table.tcKimlikNo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get adSoyad => $composableBuilder(
     column: $table.adSoyad,
     builder: (column) => ColumnOrderings(column),
@@ -3356,6 +3546,11 @@ class $$OrtaklarTableOrderingComposer
 
   ColumnOrderings<String> get nufusKayitYeri => $composableBuilder(
     column: $table.nufusKayitYeri,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get yerelDosyaYolu => $composableBuilder(
+    column: $table.yerelDosyaYolu,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3420,6 +3615,14 @@ class $$OrtaklarTableAnnotationComposer
   GeneratedColumn<String> get ortakNo =>
       $composableBuilder(column: $table.ortakNo, builder: (column) => column);
 
+  GeneratedColumn<String> get sayfaNo =>
+      $composableBuilder(column: $table.sayfaNo, builder: (column) => column);
+
+  GeneratedColumn<String> get tcKimlikNo => $composableBuilder(
+    column: $table.tcKimlikNo,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get adSoyad =>
       $composableBuilder(column: $table.adSoyad, builder: (column) => column);
 
@@ -3466,6 +3669,11 @@ class $$OrtaklarTableAnnotationComposer
 
   GeneratedColumn<String> get nufusKayitYeri => $composableBuilder(
     column: $table.nufusKayitYeri,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get yerelDosyaYolu => $composableBuilder(
+    column: $table.yerelDosyaYolu,
     builder: (column) => column,
   );
 
@@ -3569,6 +3777,8 @@ class $$OrtaklarTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> ortakNo = const Value.absent(),
+                Value<String?> sayfaNo = const Value.absent(),
+                Value<String?> tcKimlikNo = const Value.absent(),
                 Value<String> adSoyad = const Value.absent(),
                 Value<String?> babaAdi = const Value.absent(),
                 Value<String?> dogumYeri = const Value.absent(),
@@ -3580,6 +3790,7 @@ class $$OrtaklarTableTableManager
                 Value<DateTime?> cikisTarihi = const Value.absent(),
                 Value<String?> ikametAdresi = const Value.absent(),
                 Value<String?> nufusKayitYeri = const Value.absent(),
+                Value<String?> yerelDosyaYolu = const Value.absent(),
                 Value<String> aramaAnahtari = const Value.absent(),
                 Value<String?> belgeR2Anahtari = const Value.absent(),
                 Value<double?> ocrGuvenOrtalama = const Value.absent(),
@@ -3593,6 +3804,8 @@ class $$OrtaklarTableTableManager
               }) => OrtaklarCompanion(
                 id: id,
                 ortakNo: ortakNo,
+                sayfaNo: sayfaNo,
+                tcKimlikNo: tcKimlikNo,
                 adSoyad: adSoyad,
                 babaAdi: babaAdi,
                 dogumYeri: dogumYeri,
@@ -3604,6 +3817,7 @@ class $$OrtaklarTableTableManager
                 cikisTarihi: cikisTarihi,
                 ikametAdresi: ikametAdresi,
                 nufusKayitYeri: nufusKayitYeri,
+                yerelDosyaYolu: yerelDosyaYolu,
                 aramaAnahtari: aramaAnahtari,
                 belgeR2Anahtari: belgeR2Anahtari,
                 ocrGuvenOrtalama: ocrGuvenOrtalama,
@@ -3619,6 +3833,8 @@ class $$OrtaklarTableTableManager
               ({
                 required String id,
                 required String ortakNo,
+                Value<String?> sayfaNo = const Value.absent(),
+                Value<String?> tcKimlikNo = const Value.absent(),
                 required String adSoyad,
                 Value<String?> babaAdi = const Value.absent(),
                 Value<String?> dogumYeri = const Value.absent(),
@@ -3630,6 +3846,7 @@ class $$OrtaklarTableTableManager
                 Value<DateTime?> cikisTarihi = const Value.absent(),
                 Value<String?> ikametAdresi = const Value.absent(),
                 Value<String?> nufusKayitYeri = const Value.absent(),
+                Value<String?> yerelDosyaYolu = const Value.absent(),
                 required String aramaAnahtari,
                 Value<String?> belgeR2Anahtari = const Value.absent(),
                 Value<double?> ocrGuvenOrtalama = const Value.absent(),
@@ -3643,6 +3860,8 @@ class $$OrtaklarTableTableManager
               }) => OrtaklarCompanion.insert(
                 id: id,
                 ortakNo: ortakNo,
+                sayfaNo: sayfaNo,
+                tcKimlikNo: tcKimlikNo,
                 adSoyad: adSoyad,
                 babaAdi: babaAdi,
                 dogumYeri: dogumYeri,
@@ -3654,6 +3873,7 @@ class $$OrtaklarTableTableManager
                 cikisTarihi: cikisTarihi,
                 ikametAdresi: ikametAdresi,
                 nufusKayitYeri: nufusKayitYeri,
+                yerelDosyaYolu: yerelDosyaYolu,
                 aramaAnahtari: aramaAnahtari,
                 belgeR2Anahtari: belgeR2Anahtari,
                 ocrGuvenOrtalama: ocrGuvenOrtalama,

@@ -26,12 +26,53 @@ class KuyrukEkrani extends ConsumerWidget {
 
   bool get _mobil => Platform.isAndroid || Platform.isIOS;
 
+  void _hataGoster(BuildContext context, String baslik, Object hata) {
+    try {
+      File('app_debug.log').writeAsStringSync(
+        '[${DateTime.now().toIso8601String()}] [$baslik] $hata\n',
+        mode: FileMode.append,
+      );
+    } catch (_) {}
+
+    if (context.mounted) {
+      showDialog<void>(
+        context: context,
+        builder: (BuildContext ctx) => AlertDialog(
+          title: Text(baslik),
+          content: SelectableText('$hata'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Tamam'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   Future<void> _klasorSec(BuildContext context, WidgetRef ref) async {
-    final String? klasorYolu = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: 'Taranmış belgelerin bulunduğu klasörü seçin',
-    );
+    String? klasorYolu;
+    try {
+      klasorYolu = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Taranmış belgelerin bulunduğu klasörü seçin',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        _hataGoster(context, 'Klasör Seçici Hatası', e);
+      }
+      return;
+    }
+
     if (klasorYolu == null) return;
-    await ref.read(kuyrukIsleyiciProvider.notifier).klasorSecVeIceAktar(klasorYolu);
+
+    try {
+      await ref.read(kuyrukIsleyiciProvider.notifier).klasorSecVeIceAktar(klasorYolu);
+    } catch (e) {
+      if (context.mounted) {
+        _hataGoster(context, 'İçe Aktarma Hatası', e);
+      }
+    }
   }
 
   /// PLAN.md §6.2 — mobilde `image_picker` ile kamera/galeri.
@@ -40,10 +81,60 @@ class KuyrukEkrani extends ConsumerWidget {
   /// sıkıştırmasını devre dışı bırakır. HEIC→JPEG dönüşümü ve boyut
   /// kontrolü zaten `GoruntuHazirlayici`'nin mobil kolunda (PLAN.md §6.3)
   /// yapılıyor; burada iki kez sıkıştırma olmasın diye ham dosya alınır.
-  Future<void> _mobildenEkle(WidgetRef ref, ImageSource kaynak) async {
-    final XFile? dosya = await ImagePicker().pickImage(source: kaynak);
+  Future<void> _mobildenEkle(BuildContext context, WidgetRef ref, ImageSource kaynak) async {
+    XFile? dosya;
+    try {
+      dosya = await ImagePicker().pickImage(source: kaynak);
+    } catch (e) {
+      if (context.mounted) {
+        _hataGoster(context, 'Görsel Seçici Hatası', e);
+      }
+      return;
+    }
+
     if (dosya == null) return;
-    await ref.read(kuyrukIsleyiciProvider.notifier).tekDosyaEkleVeIsle(dosya.path);
+
+    try {
+      await ref.read(kuyrukIsleyiciProvider.notifier).tekDosyaEkleVeIsle(dosya.path);
+    } catch (e) {
+      if (context.mounted) {
+        _hataGoster(context, 'Görsel Ekleme Hatası', e);
+      }
+    }
+  }
+
+  Future<void> _kuyruguTemizleOnayi(BuildContext context, WidgetRef ref) async {
+    final bool? onay = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('Kuyruğu Temizle'),
+        content: const Text(
+          'Kuyruktaki tüm belgeler temizlenecektir. Emin misiniz?',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Temizle'),
+          ),
+        ],
+      ),
+    );
+
+    if (onay == true) {
+      await ref.read(kuyrukRepositoryProvider).kuyruguTemizle();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kuyruk temizlendi.')),
+        );
+      }
+    }
   }
 
   @override
@@ -52,28 +143,45 @@ class KuyrukEkrani extends ConsumerWidget {
     final KuyrukIlerlemeDurumu ilerleme = ref.watch(kuyrukIsleyiciProvider);
     final AsyncValue<List<IceAktarmaIsi>> listeAsync = ref.watch(kuyrukListesiProvider);
 
+    final bool temizlemeEtkin = listeAsync.maybeWhen(
+      data: (List<IceAktarmaIsi> isler) => isler.isNotEmpty && !ilerleme.calisiyorMu,
+      orElse: () => false,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('İçe Aktarma Kuyruğu'),
         actions: _mobil
             ? <Widget>[
+                if (temizlemeEtkin)
+                  IconButton(
+                    onPressed: () => _kuyruguTemizleOnayi(context, ref),
+                    icon: const Icon(Icons.delete_sweep_outlined),
+                    tooltip: 'Kuyruğu Temizle',
+                  ),
                 IconButton(
                   onPressed: ilerleme.calisiyorMu
                       ? null
-                      : () => _mobildenEkle(ref, ImageSource.camera),
+                      : () => _mobildenEkle(context, ref, ImageSource.camera),
                   icon: const Icon(Icons.photo_camera_outlined),
                   tooltip: 'Kameradan Çek',
                 ),
                 IconButton(
                   onPressed: ilerleme.calisiyorMu
                       ? null
-                      : () => _mobildenEkle(ref, ImageSource.gallery),
+                      : () => _mobildenEkle(context, ref, ImageSource.gallery),
                   icon: const Icon(Icons.photo_library_outlined),
                   tooltip: 'Galeriden Seç',
                 ),
                 const SizedBox(width: AppSpacing.sm),
               ]
             : <Widget>[
+                if (temizlemeEtkin)
+                  IconButton(
+                    onPressed: () => _kuyruguTemizleOnayi(context, ref),
+                    icon: const Icon(Icons.delete_sweep_outlined),
+                    tooltip: 'Kuyruğu Temizle',
+                  ),
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.md),
                   child: FilledButton.icon(
@@ -89,7 +197,7 @@ class KuyrukEkrani extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            if (ilerleme.calisiyorMu || ilerleme.toplam > 0) ...<Widget>[
+            if (ilerleme.calisiyorMu || ilerleme.toplam > 0 || ilerleme.sonHata != null) ...<Widget>[
               IlerlemeCubugu(durum: ilerleme),
               const SizedBox(height: AppSpacing.md),
             ],
@@ -134,41 +242,94 @@ class _KuyrukSatiri extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppColors renkler = context.renkler;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: renkler.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: renkler.border),
-      ),
-      child: Row(
-        children: <Widget>[
-          _DurumRozeti(durum: is_.durum),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final List<Widget> eylemler = _eylemler(context, ref);
+        final bool dar = constraints.maxWidth < 500 && eylemler.isNotEmpty;
+
+        if (dar) {
+          return Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: renkler.surfaceContainer,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: renkler.border),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(
-                  is_.dosyaAdi,
-                  style: AppTypography.bodyVurgulu.copyWith(color: renkler.textPrimary),
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: <Widget>[
+                    _DurumRozeti(durum: is_.durum),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            is_.dosyaAdi,
+                            style: AppTypography.bodyVurgulu.copyWith(color: renkler.textPrimary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (is_.hataMesaji != null)
+                            Text(
+                              is_.hataMesaji!,
+                              style: AppTypography.caption.copyWith(color: renkler.error),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                if (is_.hataMesaji != null)
-                  Text(
-                    is_.hataMesaji!,
-                    style: AppTypography.caption.copyWith(color: renkler.error),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: eylemler,
+                ),
               ],
             ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: renkler.surfaceContainer,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: renkler.border),
           ),
-          const SizedBox(width: AppSpacing.md),
-          ..._eylemler(context, ref),
-        ],
-      ),
+          child: Row(
+            children: <Widget>[
+              _DurumRozeti(durum: is_.durum),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      is_.dosyaAdi,
+                      style: AppTypography.bodyVurgulu.copyWith(color: renkler.textPrimary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (is_.hataMesaji != null)
+                      Text(
+                        is_.hataMesaji!,
+                        style: AppTypography.caption.copyWith(color: renkler.error),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              ...eylemler,
+            ],
+          ),
+        );
+      },
     );
   }
 

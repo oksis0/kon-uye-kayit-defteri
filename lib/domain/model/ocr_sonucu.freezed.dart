@@ -274,7 +274,7 @@ as double,
 /// @nodoc
 mixin _$OcrSonucu {
 
- OcrAlan? get ortakNo; OcrAlan? get adSoyad; OcrAlan? get babaAdi; OcrAlan? get dogumYeri; OcrAlan? get dogumTarihi; OcrAlan? get girisTarihi; OcrAlan? get cikisTarihi; OcrAlan? get ikametAdresi; OcrAlan? get nufusKayitYeri; List<DefterSatiri> get sermayeSatirlari; List<DefterSatiri> get odemeSatirlari;
+ OcrAlan? get ortakNo; OcrAlan? get sayfaNo; OcrAlan? get tcKimlikNo; OcrAlan? get adSoyad; OcrAlan? get babaAdi; OcrAlan? get dogumYeri; OcrAlan? get dogumTarihi; OcrAlan? get girisTarihi; OcrAlan? get cikisTarihi; OcrAlan? get ikametAdresi; OcrAlan? get nufusKayitYeri; List<DefterSatiri> get sermayeSatirlari; List<DefterSatiri> get odemeSatirlari;
 /// Create a copy of OcrSonucu
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -285,16 +285,16 @@ $OcrSonucuCopyWith<OcrSonucu> get copyWith => _$OcrSonucuCopyWithImpl<OcrSonucu>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OcrSonucu&&(identical(other.ortakNo, ortakNo) || other.ortakNo == ortakNo)&&(identical(other.adSoyad, adSoyad) || other.adSoyad == adSoyad)&&(identical(other.babaAdi, babaAdi) || other.babaAdi == babaAdi)&&(identical(other.dogumYeri, dogumYeri) || other.dogumYeri == dogumYeri)&&(identical(other.dogumTarihi, dogumTarihi) || other.dogumTarihi == dogumTarihi)&&(identical(other.girisTarihi, girisTarihi) || other.girisTarihi == girisTarihi)&&(identical(other.cikisTarihi, cikisTarihi) || other.cikisTarihi == cikisTarihi)&&(identical(other.ikametAdresi, ikametAdresi) || other.ikametAdresi == ikametAdresi)&&(identical(other.nufusKayitYeri, nufusKayitYeri) || other.nufusKayitYeri == nufusKayitYeri)&&const DeepCollectionEquality().equals(other.sermayeSatirlari, sermayeSatirlari)&&const DeepCollectionEquality().equals(other.odemeSatirlari, odemeSatirlari));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OcrSonucu&&(identical(other.ortakNo, ortakNo) || other.ortakNo == ortakNo)&&(identical(other.sayfaNo, sayfaNo) || other.sayfaNo == sayfaNo)&&(identical(other.tcKimlikNo, tcKimlikNo) || other.tcKimlikNo == tcKimlikNo)&&(identical(other.adSoyad, adSoyad) || other.adSoyad == adSoyad)&&(identical(other.babaAdi, babaAdi) || other.babaAdi == babaAdi)&&(identical(other.dogumYeri, dogumYeri) || other.dogumYeri == dogumYeri)&&(identical(other.dogumTarihi, dogumTarihi) || other.dogumTarihi == dogumTarihi)&&(identical(other.girisTarihi, girisTarihi) || other.girisTarihi == girisTarihi)&&(identical(other.cikisTarihi, cikisTarihi) || other.cikisTarihi == cikisTarihi)&&(identical(other.ikametAdresi, ikametAdresi) || other.ikametAdresi == ikametAdresi)&&(identical(other.nufusKayitYeri, nufusKayitYeri) || other.nufusKayitYeri == nufusKayitYeri)&&const DeepCollectionEquality().equals(other.sermayeSatirlari, sermayeSatirlari)&&const DeepCollectionEquality().equals(other.odemeSatirlari, odemeSatirlari));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ortakNo,adSoyad,babaAdi,dogumYeri,dogumTarihi,girisTarihi,cikisTarihi,ikametAdresi,nufusKayitYeri,const DeepCollectionEquality().hash(sermayeSatirlari),const DeepCollectionEquality().hash(odemeSatirlari));
+int get hashCode => Object.hash(runtimeType,ortakNo,sayfaNo,tcKimlikNo,adSoyad,babaAdi,dogumYeri,dogumTarihi,girisTarihi,cikisTarihi,ikametAdresi,nufusKayitYeri,const DeepCollectionEquality().hash(sermayeSatirlari),const DeepCollectionEquality().hash(odemeSatirlari));
 
 @override
 String toString() {
-  return 'OcrSonucu(ortakNo: $ortakNo, adSoyad: $adSoyad, babaAdi: $babaAdi, dogumYeri: $dogumYeri, dogumTarihi: $dogumTarihi, girisTarihi: $girisTarihi, cikisTarihi: $cikisTarihi, ikametAdresi: $ikametAdresi, nufusKayitYeri: $nufusKayitYeri, sermayeSatirlari: $sermayeSatirlari, odemeSatirlari: $odemeSatirlari)';
+  return 'OcrSonucu(ortakNo: $ortakNo, sayfaNo: $sayfaNo, tcKimlikNo: $tcKimlikNo, adSoyad: $adSoyad, babaAdi: $babaAdi, dogumYeri: $dogumYeri, dogumTarihi: $dogumTarihi, girisTarihi: $girisTarihi, cikisTarihi: $cikisTarihi, ikametAdresi: $ikametAdresi, nufusKayitYeri: $nufusKayitYeri, sermayeSatirlari: $sermayeSatirlari, odemeSatirlari: $odemeSatirlari)';
 }
 
 
@@ -305,11 +305,11 @@ abstract mixin class $OcrSonucuCopyWith<$Res>  {
   factory $OcrSonucuCopyWith(OcrSonucu value, $Res Function(OcrSonucu) _then) = _$OcrSonucuCopyWithImpl;
 @useResult
 $Res call({
- OcrAlan? ortakNo, OcrAlan? adSoyad, OcrAlan? babaAdi, OcrAlan? dogumYeri, OcrAlan? dogumTarihi, OcrAlan? girisTarihi, OcrAlan? cikisTarihi, OcrAlan? ikametAdresi, OcrAlan? nufusKayitYeri, List<DefterSatiri> sermayeSatirlari, List<DefterSatiri> odemeSatirlari
+ OcrAlan? ortakNo, OcrAlan? sayfaNo, OcrAlan? tcKimlikNo, OcrAlan? adSoyad, OcrAlan? babaAdi, OcrAlan? dogumYeri, OcrAlan? dogumTarihi, OcrAlan? girisTarihi, OcrAlan? cikisTarihi, OcrAlan? ikametAdresi, OcrAlan? nufusKayitYeri, List<DefterSatiri> sermayeSatirlari, List<DefterSatiri> odemeSatirlari
 });
 
 
-$OcrAlanCopyWith<$Res>? get ortakNo;$OcrAlanCopyWith<$Res>? get adSoyad;$OcrAlanCopyWith<$Res>? get babaAdi;$OcrAlanCopyWith<$Res>? get dogumYeri;$OcrAlanCopyWith<$Res>? get dogumTarihi;$OcrAlanCopyWith<$Res>? get girisTarihi;$OcrAlanCopyWith<$Res>? get cikisTarihi;$OcrAlanCopyWith<$Res>? get ikametAdresi;$OcrAlanCopyWith<$Res>? get nufusKayitYeri;
+$OcrAlanCopyWith<$Res>? get ortakNo;$OcrAlanCopyWith<$Res>? get sayfaNo;$OcrAlanCopyWith<$Res>? get tcKimlikNo;$OcrAlanCopyWith<$Res>? get adSoyad;$OcrAlanCopyWith<$Res>? get babaAdi;$OcrAlanCopyWith<$Res>? get dogumYeri;$OcrAlanCopyWith<$Res>? get dogumTarihi;$OcrAlanCopyWith<$Res>? get girisTarihi;$OcrAlanCopyWith<$Res>? get cikisTarihi;$OcrAlanCopyWith<$Res>? get ikametAdresi;$OcrAlanCopyWith<$Res>? get nufusKayitYeri;
 
 }
 /// @nodoc
@@ -322,9 +322,11 @@ class _$OcrSonucuCopyWithImpl<$Res>
 
 /// Create a copy of OcrSonucu
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? ortakNo = freezed,Object? adSoyad = freezed,Object? babaAdi = freezed,Object? dogumYeri = freezed,Object? dogumTarihi = freezed,Object? girisTarihi = freezed,Object? cikisTarihi = freezed,Object? ikametAdresi = freezed,Object? nufusKayitYeri = freezed,Object? sermayeSatirlari = null,Object? odemeSatirlari = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? ortakNo = freezed,Object? sayfaNo = freezed,Object? tcKimlikNo = freezed,Object? adSoyad = freezed,Object? babaAdi = freezed,Object? dogumYeri = freezed,Object? dogumTarihi = freezed,Object? girisTarihi = freezed,Object? cikisTarihi = freezed,Object? ikametAdresi = freezed,Object? nufusKayitYeri = freezed,Object? sermayeSatirlari = null,Object? odemeSatirlari = null,}) {
   return _then(_self.copyWith(
 ortakNo: freezed == ortakNo ? _self.ortakNo : ortakNo // ignore: cast_nullable_to_non_nullable
+as OcrAlan?,sayfaNo: freezed == sayfaNo ? _self.sayfaNo : sayfaNo // ignore: cast_nullable_to_non_nullable
+as OcrAlan?,tcKimlikNo: freezed == tcKimlikNo ? _self.tcKimlikNo : tcKimlikNo // ignore: cast_nullable_to_non_nullable
 as OcrAlan?,adSoyad: freezed == adSoyad ? _self.adSoyad : adSoyad // ignore: cast_nullable_to_non_nullable
 as OcrAlan?,babaAdi: freezed == babaAdi ? _self.babaAdi : babaAdi // ignore: cast_nullable_to_non_nullable
 as OcrAlan?,dogumYeri: freezed == dogumYeri ? _self.dogumYeri : dogumYeri // ignore: cast_nullable_to_non_nullable
@@ -349,6 +351,30 @@ $OcrAlanCopyWith<$Res>? get ortakNo {
 
   return $OcrAlanCopyWith<$Res>(_self.ortakNo!, (value) {
     return _then(_self.copyWith(ortakNo: value));
+  });
+}/// Create a copy of OcrSonucu
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$OcrAlanCopyWith<$Res>? get sayfaNo {
+    if (_self.sayfaNo == null) {
+    return null;
+  }
+
+  return $OcrAlanCopyWith<$Res>(_self.sayfaNo!, (value) {
+    return _then(_self.copyWith(sayfaNo: value));
+  });
+}/// Create a copy of OcrSonucu
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$OcrAlanCopyWith<$Res>? get tcKimlikNo {
+    if (_self.tcKimlikNo == null) {
+    return null;
+  }
+
+  return $OcrAlanCopyWith<$Res>(_self.tcKimlikNo!, (value) {
+    return _then(_self.copyWith(tcKimlikNo: value));
   });
 }/// Create a copy of OcrSonucu
 /// with the given fields replaced by the non-null parameter values.
@@ -528,10 +554,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( OcrAlan? ortakNo,  OcrAlan? adSoyad,  OcrAlan? babaAdi,  OcrAlan? dogumYeri,  OcrAlan? dogumTarihi,  OcrAlan? girisTarihi,  OcrAlan? cikisTarihi,  OcrAlan? ikametAdresi,  OcrAlan? nufusKayitYeri,  List<DefterSatiri> sermayeSatirlari,  List<DefterSatiri> odemeSatirlari)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( OcrAlan? ortakNo,  OcrAlan? sayfaNo,  OcrAlan? tcKimlikNo,  OcrAlan? adSoyad,  OcrAlan? babaAdi,  OcrAlan? dogumYeri,  OcrAlan? dogumTarihi,  OcrAlan? girisTarihi,  OcrAlan? cikisTarihi,  OcrAlan? ikametAdresi,  OcrAlan? nufusKayitYeri,  List<DefterSatiri> sermayeSatirlari,  List<DefterSatiri> odemeSatirlari)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OcrSonucu() when $default != null:
-return $default(_that.ortakNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.dogumTarihi,_that.girisTarihi,_that.cikisTarihi,_that.ikametAdresi,_that.nufusKayitYeri,_that.sermayeSatirlari,_that.odemeSatirlari);case _:
+return $default(_that.ortakNo,_that.sayfaNo,_that.tcKimlikNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.dogumTarihi,_that.girisTarihi,_that.cikisTarihi,_that.ikametAdresi,_that.nufusKayitYeri,_that.sermayeSatirlari,_that.odemeSatirlari);case _:
   return orElse();
 
 }
@@ -549,10 +575,10 @@ return $default(_that.ortakNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( OcrAlan? ortakNo,  OcrAlan? adSoyad,  OcrAlan? babaAdi,  OcrAlan? dogumYeri,  OcrAlan? dogumTarihi,  OcrAlan? girisTarihi,  OcrAlan? cikisTarihi,  OcrAlan? ikametAdresi,  OcrAlan? nufusKayitYeri,  List<DefterSatiri> sermayeSatirlari,  List<DefterSatiri> odemeSatirlari)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( OcrAlan? ortakNo,  OcrAlan? sayfaNo,  OcrAlan? tcKimlikNo,  OcrAlan? adSoyad,  OcrAlan? babaAdi,  OcrAlan? dogumYeri,  OcrAlan? dogumTarihi,  OcrAlan? girisTarihi,  OcrAlan? cikisTarihi,  OcrAlan? ikametAdresi,  OcrAlan? nufusKayitYeri,  List<DefterSatiri> sermayeSatirlari,  List<DefterSatiri> odemeSatirlari)  $default,) {final _that = this;
 switch (_that) {
 case _OcrSonucu():
-return $default(_that.ortakNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.dogumTarihi,_that.girisTarihi,_that.cikisTarihi,_that.ikametAdresi,_that.nufusKayitYeri,_that.sermayeSatirlari,_that.odemeSatirlari);case _:
+return $default(_that.ortakNo,_that.sayfaNo,_that.tcKimlikNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.dogumTarihi,_that.girisTarihi,_that.cikisTarihi,_that.ikametAdresi,_that.nufusKayitYeri,_that.sermayeSatirlari,_that.odemeSatirlari);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -569,10 +595,10 @@ return $default(_that.ortakNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( OcrAlan? ortakNo,  OcrAlan? adSoyad,  OcrAlan? babaAdi,  OcrAlan? dogumYeri,  OcrAlan? dogumTarihi,  OcrAlan? girisTarihi,  OcrAlan? cikisTarihi,  OcrAlan? ikametAdresi,  OcrAlan? nufusKayitYeri,  List<DefterSatiri> sermayeSatirlari,  List<DefterSatiri> odemeSatirlari)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( OcrAlan? ortakNo,  OcrAlan? sayfaNo,  OcrAlan? tcKimlikNo,  OcrAlan? adSoyad,  OcrAlan? babaAdi,  OcrAlan? dogumYeri,  OcrAlan? dogumTarihi,  OcrAlan? girisTarihi,  OcrAlan? cikisTarihi,  OcrAlan? ikametAdresi,  OcrAlan? nufusKayitYeri,  List<DefterSatiri> sermayeSatirlari,  List<DefterSatiri> odemeSatirlari)?  $default,) {final _that = this;
 switch (_that) {
 case _OcrSonucu() when $default != null:
-return $default(_that.ortakNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.dogumTarihi,_that.girisTarihi,_that.cikisTarihi,_that.ikametAdresi,_that.nufusKayitYeri,_that.sermayeSatirlari,_that.odemeSatirlari);case _:
+return $default(_that.ortakNo,_that.sayfaNo,_that.tcKimlikNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.dogumTarihi,_that.girisTarihi,_that.cikisTarihi,_that.ikametAdresi,_that.nufusKayitYeri,_that.sermayeSatirlari,_that.odemeSatirlari);case _:
   return null;
 
 }
@@ -584,10 +610,12 @@ return $default(_that.ortakNo,_that.adSoyad,_that.babaAdi,_that.dogumYeri,_that.
 
 
 class _OcrSonucu implements OcrSonucu {
-  const _OcrSonucu({this.ortakNo, this.adSoyad, this.babaAdi, this.dogumYeri, this.dogumTarihi, this.girisTarihi, this.cikisTarihi, this.ikametAdresi, this.nufusKayitYeri, final  List<DefterSatiri> sermayeSatirlari = const <DefterSatiri>[], final  List<DefterSatiri> odemeSatirlari = const <DefterSatiri>[]}): _sermayeSatirlari = sermayeSatirlari,_odemeSatirlari = odemeSatirlari;
+  const _OcrSonucu({this.ortakNo, this.sayfaNo, this.tcKimlikNo, this.adSoyad, this.babaAdi, this.dogumYeri, this.dogumTarihi, this.girisTarihi, this.cikisTarihi, this.ikametAdresi, this.nufusKayitYeri, final  List<DefterSatiri> sermayeSatirlari = const <DefterSatiri>[], final  List<DefterSatiri> odemeSatirlari = const <DefterSatiri>[]}): _sermayeSatirlari = sermayeSatirlari,_odemeSatirlari = odemeSatirlari;
   
 
 @override final  OcrAlan? ortakNo;
+@override final  OcrAlan? sayfaNo;
+@override final  OcrAlan? tcKimlikNo;
 @override final  OcrAlan? adSoyad;
 @override final  OcrAlan? babaAdi;
 @override final  OcrAlan? dogumYeri;
@@ -621,16 +649,16 @@ _$OcrSonucuCopyWith<_OcrSonucu> get copyWith => __$OcrSonucuCopyWithImpl<_OcrSon
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OcrSonucu&&(identical(other.ortakNo, ortakNo) || other.ortakNo == ortakNo)&&(identical(other.adSoyad, adSoyad) || other.adSoyad == adSoyad)&&(identical(other.babaAdi, babaAdi) || other.babaAdi == babaAdi)&&(identical(other.dogumYeri, dogumYeri) || other.dogumYeri == dogumYeri)&&(identical(other.dogumTarihi, dogumTarihi) || other.dogumTarihi == dogumTarihi)&&(identical(other.girisTarihi, girisTarihi) || other.girisTarihi == girisTarihi)&&(identical(other.cikisTarihi, cikisTarihi) || other.cikisTarihi == cikisTarihi)&&(identical(other.ikametAdresi, ikametAdresi) || other.ikametAdresi == ikametAdresi)&&(identical(other.nufusKayitYeri, nufusKayitYeri) || other.nufusKayitYeri == nufusKayitYeri)&&const DeepCollectionEquality().equals(other._sermayeSatirlari, _sermayeSatirlari)&&const DeepCollectionEquality().equals(other._odemeSatirlari, _odemeSatirlari));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OcrSonucu&&(identical(other.ortakNo, ortakNo) || other.ortakNo == ortakNo)&&(identical(other.sayfaNo, sayfaNo) || other.sayfaNo == sayfaNo)&&(identical(other.tcKimlikNo, tcKimlikNo) || other.tcKimlikNo == tcKimlikNo)&&(identical(other.adSoyad, adSoyad) || other.adSoyad == adSoyad)&&(identical(other.babaAdi, babaAdi) || other.babaAdi == babaAdi)&&(identical(other.dogumYeri, dogumYeri) || other.dogumYeri == dogumYeri)&&(identical(other.dogumTarihi, dogumTarihi) || other.dogumTarihi == dogumTarihi)&&(identical(other.girisTarihi, girisTarihi) || other.girisTarihi == girisTarihi)&&(identical(other.cikisTarihi, cikisTarihi) || other.cikisTarihi == cikisTarihi)&&(identical(other.ikametAdresi, ikametAdresi) || other.ikametAdresi == ikametAdresi)&&(identical(other.nufusKayitYeri, nufusKayitYeri) || other.nufusKayitYeri == nufusKayitYeri)&&const DeepCollectionEquality().equals(other._sermayeSatirlari, _sermayeSatirlari)&&const DeepCollectionEquality().equals(other._odemeSatirlari, _odemeSatirlari));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ortakNo,adSoyad,babaAdi,dogumYeri,dogumTarihi,girisTarihi,cikisTarihi,ikametAdresi,nufusKayitYeri,const DeepCollectionEquality().hash(_sermayeSatirlari),const DeepCollectionEquality().hash(_odemeSatirlari));
+int get hashCode => Object.hash(runtimeType,ortakNo,sayfaNo,tcKimlikNo,adSoyad,babaAdi,dogumYeri,dogumTarihi,girisTarihi,cikisTarihi,ikametAdresi,nufusKayitYeri,const DeepCollectionEquality().hash(_sermayeSatirlari),const DeepCollectionEquality().hash(_odemeSatirlari));
 
 @override
 String toString() {
-  return 'OcrSonucu(ortakNo: $ortakNo, adSoyad: $adSoyad, babaAdi: $babaAdi, dogumYeri: $dogumYeri, dogumTarihi: $dogumTarihi, girisTarihi: $girisTarihi, cikisTarihi: $cikisTarihi, ikametAdresi: $ikametAdresi, nufusKayitYeri: $nufusKayitYeri, sermayeSatirlari: $sermayeSatirlari, odemeSatirlari: $odemeSatirlari)';
+  return 'OcrSonucu(ortakNo: $ortakNo, sayfaNo: $sayfaNo, tcKimlikNo: $tcKimlikNo, adSoyad: $adSoyad, babaAdi: $babaAdi, dogumYeri: $dogumYeri, dogumTarihi: $dogumTarihi, girisTarihi: $girisTarihi, cikisTarihi: $cikisTarihi, ikametAdresi: $ikametAdresi, nufusKayitYeri: $nufusKayitYeri, sermayeSatirlari: $sermayeSatirlari, odemeSatirlari: $odemeSatirlari)';
 }
 
 
@@ -641,11 +669,11 @@ abstract mixin class _$OcrSonucuCopyWith<$Res> implements $OcrSonucuCopyWith<$Re
   factory _$OcrSonucuCopyWith(_OcrSonucu value, $Res Function(_OcrSonucu) _then) = __$OcrSonucuCopyWithImpl;
 @override @useResult
 $Res call({
- OcrAlan? ortakNo, OcrAlan? adSoyad, OcrAlan? babaAdi, OcrAlan? dogumYeri, OcrAlan? dogumTarihi, OcrAlan? girisTarihi, OcrAlan? cikisTarihi, OcrAlan? ikametAdresi, OcrAlan? nufusKayitYeri, List<DefterSatiri> sermayeSatirlari, List<DefterSatiri> odemeSatirlari
+ OcrAlan? ortakNo, OcrAlan? sayfaNo, OcrAlan? tcKimlikNo, OcrAlan? adSoyad, OcrAlan? babaAdi, OcrAlan? dogumYeri, OcrAlan? dogumTarihi, OcrAlan? girisTarihi, OcrAlan? cikisTarihi, OcrAlan? ikametAdresi, OcrAlan? nufusKayitYeri, List<DefterSatiri> sermayeSatirlari, List<DefterSatiri> odemeSatirlari
 });
 
 
-@override $OcrAlanCopyWith<$Res>? get ortakNo;@override $OcrAlanCopyWith<$Res>? get adSoyad;@override $OcrAlanCopyWith<$Res>? get babaAdi;@override $OcrAlanCopyWith<$Res>? get dogumYeri;@override $OcrAlanCopyWith<$Res>? get dogumTarihi;@override $OcrAlanCopyWith<$Res>? get girisTarihi;@override $OcrAlanCopyWith<$Res>? get cikisTarihi;@override $OcrAlanCopyWith<$Res>? get ikametAdresi;@override $OcrAlanCopyWith<$Res>? get nufusKayitYeri;
+@override $OcrAlanCopyWith<$Res>? get ortakNo;@override $OcrAlanCopyWith<$Res>? get sayfaNo;@override $OcrAlanCopyWith<$Res>? get tcKimlikNo;@override $OcrAlanCopyWith<$Res>? get adSoyad;@override $OcrAlanCopyWith<$Res>? get babaAdi;@override $OcrAlanCopyWith<$Res>? get dogumYeri;@override $OcrAlanCopyWith<$Res>? get dogumTarihi;@override $OcrAlanCopyWith<$Res>? get girisTarihi;@override $OcrAlanCopyWith<$Res>? get cikisTarihi;@override $OcrAlanCopyWith<$Res>? get ikametAdresi;@override $OcrAlanCopyWith<$Res>? get nufusKayitYeri;
 
 }
 /// @nodoc
@@ -658,9 +686,11 @@ class __$OcrSonucuCopyWithImpl<$Res>
 
 /// Create a copy of OcrSonucu
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? ortakNo = freezed,Object? adSoyad = freezed,Object? babaAdi = freezed,Object? dogumYeri = freezed,Object? dogumTarihi = freezed,Object? girisTarihi = freezed,Object? cikisTarihi = freezed,Object? ikametAdresi = freezed,Object? nufusKayitYeri = freezed,Object? sermayeSatirlari = null,Object? odemeSatirlari = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? ortakNo = freezed,Object? sayfaNo = freezed,Object? tcKimlikNo = freezed,Object? adSoyad = freezed,Object? babaAdi = freezed,Object? dogumYeri = freezed,Object? dogumTarihi = freezed,Object? girisTarihi = freezed,Object? cikisTarihi = freezed,Object? ikametAdresi = freezed,Object? nufusKayitYeri = freezed,Object? sermayeSatirlari = null,Object? odemeSatirlari = null,}) {
   return _then(_OcrSonucu(
 ortakNo: freezed == ortakNo ? _self.ortakNo : ortakNo // ignore: cast_nullable_to_non_nullable
+as OcrAlan?,sayfaNo: freezed == sayfaNo ? _self.sayfaNo : sayfaNo // ignore: cast_nullable_to_non_nullable
+as OcrAlan?,tcKimlikNo: freezed == tcKimlikNo ? _self.tcKimlikNo : tcKimlikNo // ignore: cast_nullable_to_non_nullable
 as OcrAlan?,adSoyad: freezed == adSoyad ? _self.adSoyad : adSoyad // ignore: cast_nullable_to_non_nullable
 as OcrAlan?,babaAdi: freezed == babaAdi ? _self.babaAdi : babaAdi // ignore: cast_nullable_to_non_nullable
 as OcrAlan?,dogumYeri: freezed == dogumYeri ? _self.dogumYeri : dogumYeri // ignore: cast_nullable_to_non_nullable
@@ -686,6 +716,30 @@ $OcrAlanCopyWith<$Res>? get ortakNo {
 
   return $OcrAlanCopyWith<$Res>(_self.ortakNo!, (value) {
     return _then(_self.copyWith(ortakNo: value));
+  });
+}/// Create a copy of OcrSonucu
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$OcrAlanCopyWith<$Res>? get sayfaNo {
+    if (_self.sayfaNo == null) {
+    return null;
+  }
+
+  return $OcrAlanCopyWith<$Res>(_self.sayfaNo!, (value) {
+    return _then(_self.copyWith(sayfaNo: value));
+  });
+}/// Create a copy of OcrSonucu
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$OcrAlanCopyWith<$Res>? get tcKimlikNo {
+    if (_self.tcKimlikNo == null) {
+    return null;
+  }
+
+  return $OcrAlanCopyWith<$Res>(_self.tcKimlikNo!, (value) {
+    return _then(_self.copyWith(tcKimlikNo: value));
   });
 }/// Create a copy of OcrSonucu
 /// with the given fields replaced by the non-null parameter values.

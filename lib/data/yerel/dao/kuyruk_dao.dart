@@ -32,6 +32,13 @@ class KuyrukDao extends DatabaseAccessor<AppVeritabani> with _$KuyrukDaoMixin {
     return (select(iceAktarmaKuyrugu)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
+  Future<IceAktarmaIsiSatiri?> ortakIdIleBul(String ortakId) {
+    return (select(iceAktarmaKuyrugu)
+          ..where((t) => t.olusanOrtakId.equals(ortakId))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   Future<bool> hashVarMi(String hash) async {
     final IceAktarmaIsiSatiri? bulunan = await (select(iceAktarmaKuyrugu)
           ..where((t) => t.dosyaHash.equals(hash)))
@@ -41,8 +48,12 @@ class KuyrukDao extends DatabaseAccessor<AppVeritabani> with _$KuyrukDaoMixin {
 
   Future<int> ekle(IceAktarmaKuyruguCompanion is_) => into(iceAktarmaKuyrugu).insert(is_);
 
-  Future<bool> guncelle(IceAktarmaKuyruguCompanion is_) =>
-      update(iceAktarmaKuyrugu).replace(is_);
+  Future<bool> guncelle(IceAktarmaKuyruguCompanion is_) async {
+    final int etkilenen = await (update(iceAktarmaKuyrugu)
+          ..where((t) => t.id.equals(is_.id.value)))
+        .write(is_);
+    return etkilenen > 0;
+  }
 
   /// Bu ay kalan Azure kotasını (500 sayfa) planlamak için — kuyrukta
   /// henüz OCR yapılmamış kaç iş kaldığını sayar.
@@ -54,4 +65,7 @@ class KuyrukDao extends DatabaseAccessor<AppVeritabani> with _$KuyrukDaoMixin {
         .getSingleOrNull();
     return sayi ?? 0;
   }
+
+  /// Kuyruktaki tüm kayıtları temizler.
+  Future<int> tumunuSil() => delete(iceAktarmaKuyrugu).go();
 }

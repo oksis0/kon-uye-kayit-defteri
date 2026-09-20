@@ -81,7 +81,7 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
       await repo.klasordenIceAktar(klasorYolu);
     } catch (e) {
       state = state.kopyala(calisiyorMu: false, sonHata: e.toString());
-      return;
+      rethrow;
     }
 
     await hazirlamayaDevamEt();
@@ -98,7 +98,7 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
       await repo.dosyaEkle(dosyaYolu);
     } catch (e) {
       state = state.kopyala(calisiyorMu: false, sonHata: e.toString());
-      return;
+      rethrow;
     }
 
     await hazirlamayaDevamEt();
@@ -145,9 +145,30 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
         }
 
         state = state.kopyala(suankiDosyaAdi: is_.dosyaAdi);
-        await repo.hazirla(is_.id, ocrRepo: ocrRepo);
+        bool basarili = false;
+        while (!basarili) {
+          try {
+            await repo.hazirla(is_.id, ocrRepo: ocrRepo);
+            basarili = true;
+          } catch (e) {
+            if (e.toString().contains('429') || e.toString().contains('rate limit')) {
+              state = state.kopyala(
+                sonHata: 'Azure ücretsiz hız sınırı (429). 25 saniye bekleniyor...',
+              );
+              await Future<void>.delayed(const Duration(seconds: 25));
+              state = state.kopyala(sonHataTemizle: true);
+            } else {
+              break;
+            }
+          }
+        }
         if (kalanKota != null) kalanKota--;
         state = state.kopyala(tamamlanan: state.tamamlanan + 1);
+
+        // Azure F0 ücretsiz katman sınırını (15 istek/dk) korumak için 4 sn aralık
+        if (ocrRepo != null) {
+          await Future<void>.delayed(const Duration(seconds: 4));
+        }
       }
     }
 
@@ -170,7 +191,29 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
       state = state.kopyala(calisiyorMu: true, ocrBekleyenSayisi: ocrBekleyenler.length);
 
       for (final IceAktarmaIsi is_ in ocrBekleyenler) {
-        await repo.ocrDurumunuKontrolEt(is_.id, ocrRepo);
+        try {
+          final OcrIslemSonucu? sonuc = await repo.ocrDurumunuKontrolEt(is_.id, ocrRepo);
+          if (sonuc is OcrIslemSonucuHizSiniri) {
+            state = state.kopyala(
+              sonHata: 'Azure ücretsiz hız sınırı (429). ${sonuc.beklemeSaniyesi} saniye bekleniyor...',
+            );
+            await Future<void>.delayed(Duration(seconds: sonuc.beklemeSaniyesi));
+            state = state.kopyala(sonHataTemizle: true);
+            break;
+          }
+        } catch (e) {
+          if (e.toString().contains('429') || e.toString().contains('rate limit')) {
+            state = state.kopyala(
+              sonHata: 'Azure ücretsiz hız sınırı (429). 25 saniye bekleniyor...',
+            );
+            await Future<void>.delayed(const Duration(seconds: 25));
+            state = state.kopyala(sonHataTemizle: true);
+            break;
+          }
+        }
+
+        // Azure F0 hız sınırı (15 çağrı/dakika) için her sorgu arasına 4 sn aralık
+        await Future<void>.delayed(const Duration(seconds: 4));
       }
 
       await Future<void>.delayed(const Duration(seconds: 2));

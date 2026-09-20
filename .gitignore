@@ -55,5 +55,9 @@ worker/.dev.vars
 worker/node_modules/
 worker/.wrangler/
 
+# Firebase mobil servis dosyaları
+**/google-services.json
+**/GoogleService-Info.plist
+
 # Uygulama içi yedekler (test sırasında oluşabilir)
 /yedek_*/

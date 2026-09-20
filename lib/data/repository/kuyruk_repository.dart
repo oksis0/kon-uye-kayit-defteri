@@ -145,15 +145,17 @@ class KuyrukRepository {
   /// `ocrYapiliyor` durumundaki bir işin Azure sonucunu tek seferlik
   /// sorgular (bekleme döngüsü çağıran tarafta — PLAN.md §2.3). "Bekliyor"
   /// yanıtında durum değişmez, bir sonraki pollde tekrar denenir.
-  Future<void> ocrDurumunuKontrolEt(String isId, OcrRepository ocrRepo) async {
+  Future<OcrIslemSonucu?> ocrDurumunuKontrolEt(String isId, OcrRepository ocrRepo) async {
     final IceAktarmaIsiSatiri? satir = await _db.kuyrukDao.idIleBul(isId);
-    if (satir == null || satir.azureOperationId == null) return;
+    if (satir == null || satir.azureOperationId == null) return null;
 
     final OcrIslemSonucu sonuc = await ocrRepo.durumSorgula(satir.azureOperationId!);
 
     switch (sonuc) {
       case OcrIslemSonucuBekliyor():
-        return;
+        return sonuc;
+      case OcrIslemSonucuHizSiniri():
+        return sonuc;
       case OcrIslemSonucuBitti(:final String hamJson):
         await _db.kuyrukDao.guncelle(
           IceAktarmaKuyruguCompanion(
@@ -162,6 +164,7 @@ class KuyrukRepository {
             ocrHamJson: Value(hamJson),
           ),
         );
+        return sonuc;
       case OcrIslemSonucuHata(:final String mesaj):
         await _db.kuyrukDao.guncelle(
           IceAktarmaKuyruguCompanion(
@@ -171,6 +174,7 @@ class KuyrukRepository {
             denemeSayisi: Value(satir.denemeSayisi + 1),
           ),
         );
+        return sonuc;
     }
   }
 
@@ -206,6 +210,17 @@ class KuyrukRepository {
         hataMesaji: const Value(null),
       ),
     );
+  }
+
+  /// Kuyruktaki tüm kayıtları temizler.
+  Future<void> kuyruguTemizle() async {
+    await _db.kuyrukDao.tumunuSil();
+  }
+
+  /// Bir ortağın içe aktarıldığı orijinal dosyanın yerel yolunu döner (varsa).
+  Future<String?> ortaginDosyaYolunuBul(String ortakId) async {
+    final IceAktarmaIsiSatiri? satir = await _db.kuyrukDao.ortakIdIleBul(ortakId);
+    return satir?.dosyaYolu;
   }
 
   IceAktarmaIsi _iseDonustur(IceAktarmaIsiSatiri satir) => IceAktarmaIsi(

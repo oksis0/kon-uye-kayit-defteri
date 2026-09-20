@@ -12,7 +12,7 @@ service cloud.firestore {
 
     function tekYetkiliKullanici() {
       return request.auth != null
-          && request.auth.uid == 'BURAYA_UID_YAPISTIR';
+          && request.auth.uid == '703XwqXOZgPMx2bGBi2P2bP58JU2';
     }
 
     match /ortaklar/{ortakId}   { allow read, write: if tekYetkiliKullanici(); }

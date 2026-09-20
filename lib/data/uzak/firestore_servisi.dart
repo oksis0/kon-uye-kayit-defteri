@@ -112,6 +112,8 @@ class FirestoreServisi {
 
     return <String, dynamic>{
       'ortakNo': ortak.ortakNo,
+      'sayfaNo': ortak.sayfaNo,
+      'tcKimlikNo': ortak.tcKimlikNo,
       'adSoyad': ortak.adSoyad,
       'babaAdi': ortak.babaAdi,
       'dogumYeri': ortak.dogumYeri,
@@ -160,6 +162,8 @@ class FirestoreServisi {
     final Ortak ortak = Ortak(
       id: id,
       ortakNo: veri['ortakNo'] as String? ?? '',
+      sayfaNo: veri['sayfaNo'] as String?,
+      tcKimlikNo: veri['tcKimlikNo'] as String?,
       adSoyad: veri['adSoyad'] as String? ?? '',
       babaAdi: veri['babaAdi'] as String?,
       dogumYeri: veri['dogumYeri'] as String?,

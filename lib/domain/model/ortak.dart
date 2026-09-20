@@ -13,6 +13,8 @@ abstract class Ortak with _$Ortak {
   const factory Ortak({
     required String id,
     required String ortakNo,
+    String? sayfaNo,
+    String? tcKimlikNo,
     required String adSoyad,
     String? babaAdi,
     String? dogumYeri,
@@ -24,6 +26,7 @@ abstract class Ortak with _$Ortak {
     DateTime? cikisTarihi,
     String? ikametAdresi,
     String? nufusKayitYeri,
+    String? yerelDosyaYolu,
     required String aramaAnahtari,
     String? belgeR2Anahtari,
     double? ocrGuvenOrtalama,

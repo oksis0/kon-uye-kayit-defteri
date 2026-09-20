@@ -1,0 +1,60 @@
+name: Windows x64 Setup Derleme
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    name: Windows x64 Installer Oluştur
+    runs-on: windows-latest
+
+    steps:
+      - name: Depoyu Klonla
+        uses: actions/checkout@v4
+
+      - name: Flutter Ortamını Hazırla
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: 'stable'
+          cache: true
+
+      - name: Inno Setup Kur
+        run: choco install innosetup --no-progress
+
+      - name: Bağımlılıkları İndir (pub get)
+        run: flutter pub get
+
+      - name: env.json Dosyasını Hazırla
+        shell: pwsh
+        run: |
+          $envJson = @'
+          {
+            "WORKER_URL": "https://ortak-defteri-worker.uye-kayit-defteri.workers.dev",
+            "FIREBASE_API_KEY": "AIzaSyBHvKsmTMvpmlLYe9jFta8uhpealOThmR0",
+            "FIREBASE_APP_ID": "1:1035546741648:web:c8250ef151c396355d4115",
+            "FIREBASE_MESSAGING_SENDER_ID": "1035546741648",
+            "FIREBASE_PROJECT_ID": "uye-kayit-defteri"
+          }
+          '@
+          Set-Content -Path "env.json" -Value $envJson -Encoding UTF8
+
+      - name: Windows x64 Release Derle
+        run: flutter build windows --release --dart-define-from-file=env.json
+
+      - name: Inno Setup ile Kurulum Dosyasını Paketle
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\installer\inno_setup.iss
+
+      - name: Kurulum EXE Dosyasını Yükle (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KON_Uye_Kayit_Defteri_Windows_x64_Setup
+          path: build\windows\installer\KON_Uye_Kayit_Defteri_Kurulum_x64.exe
+          if-no-files-found: error

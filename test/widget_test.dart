@@ -1,14 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:ortak_defteri/app/app.dart';
+import 'package:ortak_defteri/app/router.dart';
+import 'package:ortak_defteri/features/arama/arama_ekrani.dart';
 
 void main() {
   testWidgets('Uygulama açılışta Arama ekranını gösterir', (WidgetTester tester) async {
     await initializeDateFormatting('tr_TR');
 
-    await tester.pumpWidget(const ProviderScope(child: OrtakDefteriUygulamasi()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appRouterProvider.overrideWithValue(
+            GoRouter(
+              initialLocation: '/',
+              routes: [
+                GoRoute(path: '/', builder: (context, state) => const AramaEkrani()),
+              ],
+            ),
+          ),
+        ],
+        child: const OrtakDefteriUygulamasi(),
+      ),
+    );
     // ★ pumpAndSettle KULLANILMIYOR — arama sonuçları akışı (Drift .watch())
     // hiç tamamlanmayan bir Stream olduğu için "yükleniyor" animasyonu sürekli
     // yeni kare talep eder ve pumpAndSettle asla durmaz. Sabit sayıda pump
@@ -16,7 +33,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Ortak Pay Defteri'), findsOneWidget);
+    expect(find.text('KON Üye Kayıt Defteri'), findsOneWidget);
     expect(find.text('Yeni Ortak'), findsOneWidget);
   });
 }

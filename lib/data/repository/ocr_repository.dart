@@ -57,18 +57,29 @@ class OcrRepository {
   /// işleyicisinde), burada değil. Böylece kullanıcı ilerlemeyi görebiliyor
   /// ve uygulama çökerse kaldığı yerden devam edebiliyor (PLAN.md §8).
   Future<OcrIslemSonucu> durumSorgula(String operationId) async {
-    final OcrDurumYaniti yanit = await _worker.ocrDurumSorgula(operationId);
+    try {
+      final OcrDurumYaniti yanit = await _worker.ocrDurumSorgula(operationId);
 
-    if (yanit.durum == 'bekliyor') {
-      return const OcrIslemSonucu.bekliyor();
-    }
-    if (yanit.hataliMi) {
-      return OcrIslemSonucu.hata(yanit.hataMesaji ?? 'Bilinmeyen OCR hatası');
-    }
+      if (yanit.durum == 'bekliyor') {
+        return const OcrIslemSonucu.bekliyor();
+      }
+      if (yanit.hataliMi) {
+        final String mesaj = yanit.hataMesaji ?? 'Bilinmeyen OCR hatası';
+        if (mesaj.contains('429') || mesaj.contains('rate limit')) {
+          return const OcrIslemSonucu.hizSiniri();
+        }
+        return OcrIslemSonucu.hata(mesaj);
+      }
 
-    final Map<String, dynamic> hamSonuc = yanit.sonuc ?? const <String, dynamic>{};
-    final OcrSonucu ayrilmisSonuc = azureSonucunuAyristir(hamSonuc);
-    return OcrIslemSonucu.bitti(sonuc: ayrilmisSonuc, hamJson: jsonEncode(hamSonuc));
+      final Map<String, dynamic> hamSonuc = yanit.sonuc ?? const <String, dynamic>{};
+      final OcrSonucu ayrilmisSonuc = azureSonucunuAyristir(hamSonuc);
+      return OcrIslemSonucu.bitti(sonuc: ayrilmisSonuc, hamJson: jsonEncode(hamSonuc));
+    } catch (e) {
+      if (e.toString().contains('429') || e.toString().contains('rate limit')) {
+        return const OcrIslemSonucu.hizSiniri();
+      }
+      rethrow;
+    }
   }
 
   /// Kuyruktan devam ederken: daha önce kaydedilmiş ham JSON varsa
@@ -81,11 +92,12 @@ class OcrRepository {
   }
 }
 
-/// [OcrRepository.durumSorgula] sonucu — üç halden biri.
+/// [OcrRepository.durumSorgula] sonucu.
 sealed class OcrIslemSonucu {
   const OcrIslemSonucu();
 
   const factory OcrIslemSonucu.bekliyor() = OcrIslemSonucuBekliyor;
+  const factory OcrIslemSonucu.hizSiniri({int beklemeSaniyesi}) = OcrIslemSonucuHizSiniri;
   const factory OcrIslemSonucu.bitti({required OcrSonucu sonuc, required String hamJson}) =
       OcrIslemSonucuBitti;
   const factory OcrIslemSonucu.hata(String mesaj) = OcrIslemSonucuHata;
@@ -93,6 +105,11 @@ sealed class OcrIslemSonucu {
 
 class OcrIslemSonucuBekliyor extends OcrIslemSonucu {
   const OcrIslemSonucuBekliyor();
+}
+
+class OcrIslemSonucuHizSiniri extends OcrIslemSonucu {
+  const OcrIslemSonucuHizSiniri({this.beklemeSaniyesi = 25});
+  final int beklemeSaniyesi;
 }
 
 class OcrIslemSonucuBitti extends OcrIslemSonucu {

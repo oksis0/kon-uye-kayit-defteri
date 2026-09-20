@@ -80,7 +80,7 @@ class _YedekEkraniState extends ConsumerState<YedekEkrani> {
       appBar: AppBar(title: const Text('Yedekleme')),
       body: _yukleniyor
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),

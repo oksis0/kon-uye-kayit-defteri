@@ -70,10 +70,10 @@ class _GirisEkraniState extends ConsumerState<GirisEkrani> {
 
     return Scaffold(
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
             child: Form(
               key: _formKey,
               child: Column(
@@ -81,7 +81,7 @@ class _GirisEkraniState extends ConsumerState<GirisEkrani> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   Text(
-                    'Ortak Pay Defteri',
+                    'KON Üye Kayıt Defteri',
                     textAlign: TextAlign.center,
                     style: AppTypography.headline.copyWith(color: renkler.textPrimary),
                   ),

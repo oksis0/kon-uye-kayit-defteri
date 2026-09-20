@@ -21,6 +21,8 @@ abstract class OcrAlan with _$OcrAlan {
 abstract class OcrSonucu with _$OcrSonucu {
   const factory OcrSonucu({
     OcrAlan? ortakNo,
+    OcrAlan? sayfaNo,
+    OcrAlan? tcKimlikNo,
     OcrAlan? adSoyad,
     OcrAlan? babaAdi,
     OcrAlan? dogumYeri,

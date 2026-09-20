@@ -30,20 +30,37 @@ class AppVeritabani extends _$AppVeritabani {
   AppVeritabani.baglantiIle(super.baglanti);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) => m.createAll(),
         onUpgrade: (Migrator m, int eski, int yeni) async {
           if (eski < 2) {
+            // ★ createTable her zaman GÜNCEL tablo tanımını kullanır —
+            // azureOperationId sütunu burada zaten dahil olur. Bu yüzden
+            // aynı geçişte eski < 3 kolunu da çalıştırırsak "duplicate
+            // column" hatası alırız (SqliteException code 1).
             await m.createTable(iceAktarmaKuyrugu);
-          }
-          if (eski < 3) {
+          } else if (eski < 3) {
             await m.addColumn(iceAktarmaKuyrugu, iceAktarmaKuyrugu.azureOperationId);
           }
           if (eski < 4) {
             await m.createTable(uygulamaMeta);
+          }
+          if (eski < 5) {
+            await m.addColumn(ortaklar, ortaklar.sayfaNo);
+            await m.addColumn(ortaklar, ortaklar.tcKimlikNo);
+          }
+          if (eski < 6) {
+            await m.addColumn(ortaklar, ortaklar.yerelDosyaYolu);
+            await customStatement('''
+              UPDATE ortaklar SET yerel_dosya_yolu = (
+                SELECT dosya_yolu FROM ice_aktarma_kuyrugu 
+                WHERE ice_aktarma_kuyrugu.olusan_ortak_id = ortaklar.id 
+                LIMIT 1
+              ) WHERE yerel_dosya_yolu IS NULL;
+            ''');
           }
         },
       );

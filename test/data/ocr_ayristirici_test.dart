@@ -208,5 +208,102 @@ void main() {
       expect(sonuc.sermayeSatirlari, isEmpty);
       expect(sonuc.odemeSatirlari, isEmpty);
     });
+
+    test('kimlik tablosu varsa alanlar doğrudan hücrelerden çıkarılır', () {
+      final Map<String, dynamic> kimlikTablosu = <String, dynamic>{
+        'cells': <dynamic>[
+          _hucre(0, 1, 'Baba Adı'), _hucre(0, 2, 'MUHARREM'),
+          _hucre(1, 1, 'Doğum Yeri'), _hucre(1, 2, 'ULUS'),
+          _hucre(2, 1, 'Doğum Tarihi'), _hucre(2, 2, '1974'),
+          _hucre(3, 1, 'Giriş Tarihi'), _hucre(3, 2, '1995'),
+          _hucre(6, 1, 'Nüfusa Kayıtlı Olduğu Yer:'), _hucre(6, 2, 'KONAK'),
+        ],
+      };
+      final Map<String, dynamic> yanit = _yanit(
+        sayfalar: <dynamic>[_sayfa()],
+        tablolar: <dynamic>[kimlikTablosu],
+      );
+
+      final OcrSonucu sonuc = azureSonucunuAyristir(yanit);
+
+      expect(sonuc.babaAdi?.metin, 'MUHARREM');
+      expect(sonuc.dogumYeri?.metin, 'ULUS');
+      expect(sonuc.dogumTarihi?.metin, '1974');
+      expect(sonuc.girisTarihi?.metin, '1995');
+      expect(sonuc.nufusKayitYeri?.metin, 'KONAK');
+      expect(sonuc.sermayeSatirlari, isEmpty);
+    });
+
+    test('10 sütunlu SERMAYE YÜKLENMELERİ tablosunu dinamik sütunlarla ayrıştırır', () {
+      final Map<String, dynamic> sermayeTablosu = <String, dynamic>{
+        'cells': <dynamic>[
+          <String, dynamic>{'rowIndex': 0, 'columnIndex': 0, 'content': 'Ortaklık Dilekçesi Tarihi', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 0, 'columnIndex': 1, 'columnSpan': 2, 'content': 'Yönetim Kurulu Kararı', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 0, 'columnIndex': 3, 'columnSpan': 2, 'content': 'SERMAYE Yevmiye Defteri', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 0, 'columnIndex': 5, 'content': 'YÜKLENMELERİ Açıklama', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 0, 'columnIndex': 6, 'columnSpan': 2, 'content': 'Miktarı', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 0, 'columnIndex': 8, 'columnSpan': 2, 'content': 'Yekün', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 1, 'columnIndex': 6, 'content': 'Lira', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 1, 'columnIndex': 7, 'content': 'kr.', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 1, 'columnIndex': 8, 'content': 'Lira', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 1, 'columnIndex': 9, 'content': 'kr.', 'kind': 'columnHeader'},
+          <String, dynamic>{'rowIndex': 2, 'columnIndex': 5, 'content': 'Top. Sermaye'},
+          <String, dynamic>{'rowIndex': 2, 'columnIndex': 6, 'content': '100.00-12'},
+          <String, dynamic>{'rowIndex': 2, 'columnIndex': 8, 'content': '100.00'},
+        ],
+      };
+      final Map<String, dynamic> yanit = _yanit(
+        sayfalar: <dynamic>[_sayfa()],
+        tablolar: <dynamic>[sermayeTablosu],
+      );
+
+      final OcrSonucu sonuc = azureSonucunuAyristir(yanit);
+
+      expect(sonuc.sermayeSatirlari, hasLength(1));
+      expect(sonuc.sermayeSatirlari.first.aciklama, 'Top. Sermaye');
+      expect(sonuc.sermayeSatirlari.first.miktarKurus, 10000);
+      expect(sonuc.sermayeSatirlari.first.yekunKurus, 10000);
+    });
+  });
+
+  group('azureSonucunuAyristir — gelişmiş geometrik ve yedek eşleme', () {
+    test('"Adı," etiketinden sonraki eğik/açılı el yazısı ismi bulur', () {
+      final Map<String, dynamic> yanit = _yanit(
+        sayfalar: <dynamic>[
+          _sayfa(
+            satirlar: <dynamic>[
+              _satir('Adı,', <double>[412, 1093, 645, 1093, 645, 1159, 412, 1159]),
+              _satir('SABAN EKINCI', <double>[786, 978, 1267, 978, 1267, 1129, 786, 1129]),
+            ],
+          ),
+        ],
+      );
+
+      final OcrSonucu sonuc = azureSonucunuAyristir(yanit);
+
+      expect(sonuc.adSoyad?.metin, 'SABAN EKINCI');
+    });
+
+    test('Sayfa No ve TC Kimlik No ayrı ayrı ayrıştırılır, Ortak No Sayfa No ile karışmaz', () {
+      final Map<String, dynamic> yanit = _yanit(
+        sayfalar: <dynamic>[
+          _sayfa(
+            satirlar: <dynamic>[
+              _satir('Sayfa No', <double>[2227, 807, 2435, 807, 2435, 861, 2227, 861]),
+              _satir('50', <double>[2479, 793, 2572, 793, 2572, 849, 2479, 849]),
+              _satir('T.C.', <double>[1534, 860, 1651, 860, 1651, 921, 1534, 921]),
+              _satir('52876743710', <double>[1384, 905, 1858, 905, 1858, 1017, 1384, 1017]),
+              _satir('Ortak No.', <double>[411, 1007, 599, 1007, 599, 1058, 411, 1058]),
+            ],
+          ),
+        ],
+      );
+
+      final OcrSonucu sonuc = azureSonucunuAyristir(yanit);
+
+      expect(sonuc.sayfaNo?.metin, '50');
+      expect(sonuc.tcKimlikNo?.metin, '52876743710');
+      expect(sonuc.ortakNo, isNull);
+    });
   });
 }

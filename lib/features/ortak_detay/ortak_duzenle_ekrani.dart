@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../core/config/env.dart';
+import '../../core/util/tarih_ayikla.dart';
 import '../../data/goruntu/goruntu_hazirlayici.dart';
 import '../../data/repository/belge_repository.dart';
 import '../../data/repository/kuyruk_repository.dart';
@@ -14,6 +16,7 @@ import '../../domain/enum/satir_turu.dart';
 import '../../domain/model/defter_satiri.dart';
 import '../../domain/model/ocr_sonucu.dart';
 import '../../domain/model/ortak.dart';
+import 'widget/belge_goruntuleyici_dialog.dart';
 import 'widget/belge_onizleme.dart';
 import 'widget/defter_tablosu.dart';
 
@@ -76,6 +79,8 @@ class OrtakDuzenleEkrani extends ConsumerStatefulWidget {
 class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _ortakNoController = TextEditingController();
+  final TextEditingController _sayfaNoController = TextEditingController();
+  final TextEditingController _tcKimlikNoController = TextEditingController();
   final TextEditingController _adSoyadController = TextEditingController();
   final TextEditingController _babaAdiController = TextEditingController();
   final TextEditingController _dogumYeriController = TextEditingController();
@@ -94,6 +99,7 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
 
   bool _yukleniyor = true;
   bool _kaydediliyor = false;
+  Ortak? _mevcutOrtak;
 
   bool get _yeniKayit => widget.ortakId == null;
 
@@ -112,6 +118,8 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
   @override
   void dispose() {
     _ortakNoController.dispose();
+    _sayfaNoController.dispose();
+    _tcKimlikNoController.dispose();
     _adSoyadController.dispose();
     _babaAdiController.dispose();
     _dogumYeriController.dispose();
@@ -122,12 +130,17 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
 
   Future<void> _mevcutVeriyiYukle() async {
     final Ortak? ortak = await ref.read(ortakRepositoryProvider).idIleGetir(widget.ortakId!);
-    if (ortak != null) _formuDoldur(ortak);
+    if (ortak != null) {
+      _mevcutOrtak = ortak;
+      _formuDoldur(ortak);
+    }
     if (mounted) setState(() => _yukleniyor = false);
   }
 
   void _formuDoldur(Ortak ortak) {
     _ortakNoController.text = ortak.ortakNo;
+    _sayfaNoController.text = ortak.sayfaNo ?? '';
+    _tcKimlikNoController.text = ortak.tcKimlikNo ?? '';
     _adSoyadController.text = ortak.adSoyad;
     _babaAdiController.text = ortak.babaAdi ?? '';
     _dogumYeriController.text = ortak.dogumYeri ?? '';
@@ -142,6 +155,8 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
   /// her şeyi değiştirebilir (PLAN.md §7.2).
   void _ocrIleOnDoldur(OcrSonucu ocr) {
     _ortakNoController.text = ocr.ortakNo?.metin ?? '';
+    _sayfaNoController.text = ocr.sayfaNo?.metin ?? '';
+    _tcKimlikNoController.text = ocr.tcKimlikNo?.metin ?? '';
     _adSoyadController.text = ocr.adSoyad?.metin ?? '';
     _babaAdiController.text = ocr.babaAdi?.metin ?? '';
     _dogumYeriController.text = ocr.dogumYeri?.metin ?? '';
@@ -149,10 +164,11 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
     _nufusKayitYeriController.text = ocr.nufusKayitYeri?.metin ?? '';
     _sermayeSatirlari = List<DefterSatiri>.of(ocr.sermayeSatirlari);
     _odemeSatirlari = List<DefterSatiri>.of(ocr.odemeSatirlari);
-    // Tarih alanları (dogumTarihi vb.) OCR ham metni parse edilmediği için
-    // burada boş bırakılıyor — kullanıcı elle seçer. Ham metin ileride bir
-    // tarih ayrıştırıcı eklendiğinde (core/util/tarih_ayikla.dart, Faz 10+)
-    // buraya bağlanabilir.
+
+    // Tarih alanlarını OCR ham metninden ayrıştır (örn. "1974", "1995", "15.04.1980")
+    _dogumTarihi = tarihiAyristir(ocr.dogumTarihi?.metin);
+    _girisTarihi = tarihiAyristir(ocr.girisTarihi?.metin);
+    _cikisTarihi = tarihiAyristir(ocr.cikisTarihi?.metin);
   }
 
   String? _bosIseNull(String metin) => metin.trim().isEmpty ? null : metin.trim();
@@ -178,6 +194,8 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
     final Ortak taslak = Ortak(
       id: widget.ortakId ?? '',
       ortakNo: ortakNo,
+      sayfaNo: _bosIseNull(_sayfaNoController.text),
+      tcKimlikNo: _bosIseNull(_tcKimlikNoController.text),
       adSoyad: _adSoyadController.text.trim(),
       babaAdi: _bosIseNull(_babaAdiController.text),
       dogumYeri: _bosIseNull(_dogumYeriController.text),
@@ -186,6 +204,7 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
       cikisTarihi: _cikisTarihi,
       ikametAdresi: _bosIseNull(_ikametAdresiController.text),
       nufusKayitYeri: _bosIseNull(_nufusKayitYeriController.text),
+      yerelDosyaYolu: widget.onizlemeGorselYolu ?? _mevcutOrtak?.yerelDosyaYolu,
       aramaAnahtari: '', // repository hesaplar
       olusturmaTarihi: simdi,
       guncellemeTarihi: simdi,
@@ -197,10 +216,17 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
       for (final DefterSatiri satir in <DefterSatiri>[..._sermayeSatirlari, ..._odemeSatirlari]) {
         await repo.satirEkle(satir.copyWith(ortakId: kaydedilen.id));
       }
-      kaydedilen = await _belgeYukleVeGuncelle(kaydedilen) ?? kaydedilen;
       await ref
           .read(kuyrukRepositoryProvider)
           .tamamlandiIsaretle(widget.iceAktarmaIsiId!, kaydedilen.id);
+    }
+
+    // Belge R2'ye yüklenmemişse ve görsel yolu varsa sunucuya yükle
+    if (kaydedilen.belgeR2Anahtari == null) {
+      final String? gorselYolu = widget.onizlemeGorselYolu ?? _mevcutOrtak?.yerelDosyaYolu;
+      if (gorselYolu != null && gorselYolu.isNotEmpty) {
+        kaydedilen = await _belgeYukleVeGuncelle(kaydedilen, gorselYolu) ?? kaydedilen;
+      }
     }
 
     if (!mounted) return;
@@ -211,8 +237,8 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
   /// Bulut yapılandırılmamışsa veya görsel yoksa sessizce atlanır (Faz 1-2
   /// davranışı bozulmaz). Yükleme başarısız olsa bile kayıt zaten yerelde
   /// var — kullanıcıya bilgi verilir ama akış durdurulmaz.
-  Future<Ortak?> _belgeYukleVeGuncelle(Ortak kaydedilenOrtak) async {
-    final String? gorselYolu = widget.onizlemeGorselYolu;
+  Future<Ortak?> _belgeYukleVeGuncelle(Ortak kaydedilenOrtak, [String? ozelGorselYolu]) async {
+    final String? gorselYolu = ozelGorselYolu ?? widget.onizlemeGorselYolu ?? _mevcutOrtak?.yerelDosyaYolu;
     if (!Env.bulutYapilandirmasiTamam || gorselYolu == null) return null;
 
     try {
@@ -223,13 +249,26 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
 
       final Ortak guncellenmis = kaydedilenOrtak.copyWith(
         belgeR2Anahtari: anahtar,
+        yerelDosyaYolu: gorselYolu,
         ocrGuvenOrtalama: _ocrGuvenOrtalamasiHesapla(),
       );
-      return ref.read(ortakRepositoryProvider).guncelle(guncellenmis);
+      final Ortak sonuc = await ref.read(ortakRepositoryProvider).guncelle(guncellenmis);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Belge başarıyla sunucuya (buluta) yüklendi.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      return sonuc;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Kayıt yerel olarak kaydedildi ama belge yüklenemedi: $e')),
+          SnackBar(
+            content: Text('Kayıt yerel olarak kaydedildi ama belge sunucuya yüklenemedi: $e'),
+            backgroundColor: Colors.orange.shade800,
+          ),
         );
       }
       return null;
@@ -242,6 +281,8 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
     final List<double> guvenler = <double>[
       for (final OcrAlan? alan in <OcrAlan?>[
         ocr.ortakNo,
+        ocr.sayfaNo,
+        ocr.tcKimlikNo,
         ocr.adSoyad,
         ocr.babaAdi,
         ocr.dogumYeri,
@@ -302,7 +343,7 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
 
   @override
   Widget build(BuildContext context) {
-    final String? gorselYolu = widget.onizlemeGorselYolu;
+    final String? gorselYolu = widget.onizlemeGorselYolu ?? _mevcutOrtak?.yerelDosyaYolu;
 
     return Scaffold(
       appBar: AppBar(
@@ -323,7 +364,7 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
   /// ★ Responsive (PLAN.md §14): geniş ekranda görsel+form yan yana; dar
   /// (mobil) ekranda üst üste — ikisi de aynı genişliğe sıkışınca hem
   /// görsel hem form okunmaz hâle gelirdi.
-  static const double _genisEkranEsigi = 700;
+  static const double _genisEkranEsigi = 850;
 
   Widget _gorselliDuzen(BuildContext context, String gorselYolu) {
     final bool genisEkran = MediaQuery.sizeOf(context).width >= _genisEkranEsigi;
@@ -340,7 +381,41 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
 
     return Column(
       children: <Widget>[
-        SizedBox(height: 260, child: BelgeOnizleme(dosyaYolu: gorselYolu)),
+        Stack(
+          children: <Widget>[
+            SizedBox(height: 220, child: BelgeOnizleme(dosyaYolu: gorselYolu)),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.65),
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.fullscreen, size: 18),
+                label: const Text('Büyüt'),
+                onPressed: () {
+                  final Ortak gosterilecek = _mevcutOrtak ??
+                      Ortak(
+                        id: 'gecici',
+                        ortakNo: _ortakNoController.text.trim().isEmpty ? '-' : _ortakNoController.text.trim(),
+                        adSoyad: _adSoyadController.text.trim().isEmpty ? 'Yeni Kayıt' : _adSoyadController.text.trim(),
+                        aramaAnahtari: '',
+                        yerelDosyaYolu: gorselYolu,
+                        olusturmaTarihi: DateTime.now(),
+                        guncellemeTarihi: DateTime.now(),
+                      );
+                  BelgeGoruntuleyiciDialog.goster(
+                    context,
+                    ortak: gosterilecek,
+                    yerelDosyaYolu: gorselYolu,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
         Divider(height: 1, color: context.renkler.border),
         Expanded(child: _form(context)),
       ],
@@ -371,139 +446,188 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
   Widget _form(BuildContext context) {
     final OcrSonucu? ocr = widget.ocrSonucu;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double maxW = constraints.maxWidth;
+        final bool dar = maxW < 520;
+        final double yarimGenislik = dar
+            ? (maxW - AppSpacing.md) / 2
+            : 200;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                SizedBox(
-                  width: 180,
-                  child: TextFormField(
-                    controller: _ortakNoController,
-                    decoration: _alanDekorasyonu(context, 'Ortak No', ocr?.ortakNo),
-                    validator: (String? deger) =>
-                        (deger == null || deger.trim().isEmpty) ? 'Zorunlu alan' : null,
-                  ),
-                ),
-                SizedBox(
-                  width: 320,
-                  child: TextFormField(
-                    controller: _adSoyadController,
-                    decoration: _alanDekorasyonu(context, 'Adı Soyadı', ocr?.adSoyad),
-                    validator: (String? deger) =>
-                        (deger == null || deger.trim().isEmpty) ? 'Zorunlu alan' : null,
-                  ),
-                ),
-                SizedBox(
-                  width: 260,
-                  child: TextFormField(
-                    controller: _babaAdiController,
-                    decoration: _alanDekorasyonu(context, 'Baba Adı', ocr?.babaAdi),
-                  ),
-                ),
-                SizedBox(
-                  width: 260,
-                  child: TextFormField(
-                    controller: _dogumYeriController,
-                    decoration: _alanDekorasyonu(context, 'Doğum Yeri', ocr?.dogumYeri),
-                  ),
-                ),
-                SizedBox(
-                  width: 200,
-                  child: _TarihSecici(
-                    etiket: 'Doğum Tarihi',
-                    deger: _dogumTarihi,
-                    onDegisti: (DateTime? t) => setState(() => _dogumTarihi = t),
-                  ),
-                ),
-                SizedBox(
-                  width: 200,
-                  child: _TarihSecici(
-                    etiket: 'Giriş Tarihi',
-                    deger: _girisTarihi,
-                    onDegisti: (DateTime? t) => setState(() => _girisTarihi = t),
-                  ),
-                ),
-                SizedBox(
-                  width: 200,
-                  child: _TarihSecici(
-                    etiket: 'Çıkış Tarihi',
-                    deger: _cikisTarihi,
-                    onDegisti: (DateTime? t) => setState(() => _cikisTarihi = t),
-                  ),
-                ),
-                SizedBox(
-                  width: 420,
-                  child: TextFormField(
-                    controller: _ikametAdresiController,
-                    decoration: _alanDekorasyonu(context, 'İkamet Adresi', ocr?.ikametAdresi),
-                    maxLines: 2,
-                  ),
-                ),
-                SizedBox(
-                  width: 320,
-                  child: TextFormField(
-                    controller: _nufusKayitYeriController,
-                    decoration: _alanDekorasyonu(
-                      context,
-                      'Nüfusa Kayıtlı Olduğu Yer',
-                      ocr?.nufusKayitYeri,
+                Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.md,
+                  children: <Widget>[
+                    SizedBox(
+                      width: dar ? yarimGenislik : 160,
+                      child: TextFormField(
+                        controller: _ortakNoController,
+                        decoration: _alanDekorasyonu(context, 'Ortak No', ocr?.ortakNo),
+                        validator: (String? deger) =>
+                            (deger == null || deger.trim().isEmpty) ? 'Zorunlu alan' : null,
+                      ),
                     ),
+                    SizedBox(
+                      width: dar ? yarimGenislik : 140,
+                      child: TextFormField(
+                        controller: _sayfaNoController,
+                        decoration: _alanDekorasyonu(context, 'Sayfa No', ocr?.sayfaNo),
+                      ),
+                    ),
+                    SizedBox(
+                      width: dar ? maxW : 180,
+                      child: TextFormField(
+                        controller: _tcKimlikNoController,
+                        decoration: _alanDekorasyonu(context, 'T.C. Kimlik No', ocr?.tcKimlikNo),
+                      ),
+                    ),
+                    SizedBox(
+                      width: dar ? maxW : math.min(320.0, maxW),
+                      child: TextFormField(
+                        controller: _adSoyadController,
+                        decoration: _alanDekorasyonu(context, 'Adı Soyadı', ocr?.adSoyad),
+                        validator: (String? deger) =>
+                            (deger == null || deger.trim().isEmpty) ? 'Zorunlu alan' : null,
+                      ),
+                    ),
+                    SizedBox(
+                      width: dar ? maxW : math.min(260.0, maxW),
+                      child: TextFormField(
+                        controller: _babaAdiController,
+                        decoration: _alanDekorasyonu(context, 'Baba Adı', ocr?.babaAdi),
+                      ),
+                    ),
+                    SizedBox(
+                      width: dar ? maxW : math.min(260.0, maxW),
+                      child: TextFormField(
+                        controller: _dogumYeriController,
+                        decoration: _alanDekorasyonu(context, 'Doğum Yeri', ocr?.dogumYeri),
+                      ),
+                    ),
+                    SizedBox(
+                      width: dar ? yarimGenislik : 200,
+                      child: _TarihSecici(
+                        etiket: 'Doğum Tarihi',
+                        deger: _dogumTarihi,
+                        ocrAlan: ocr?.dogumTarihi,
+                        onDegisti: (DateTime? t) => setState(() => _dogumTarihi = t),
+                      ),
+                    ),
+                    SizedBox(
+                      width: dar ? yarimGenislik : 200,
+                      child: _TarihSecici(
+                        etiket: 'Giriş Tarihi',
+                        deger: _girisTarihi,
+                        ocrAlan: ocr?.girisTarihi,
+                        onDegisti: (DateTime? t) => setState(() => _girisTarihi = t),
+                      ),
+                    ),
+                    SizedBox(
+                      width: dar ? maxW : 200,
+                      child: _TarihSecici(
+                        etiket: 'Çıkış Tarihi',
+                        deger: _cikisTarihi,
+                        ocrAlan: ocr?.cikisTarihi,
+                        onDegisti: (DateTime? t) => setState(() => _cikisTarihi = t),
+                      ),
+                    ),
+                    SizedBox(
+                      width: maxW,
+                      child: TextFormField(
+                        controller: _ikametAdresiController,
+                        decoration: _alanDekorasyonu(context, 'İkamet Adresi', ocr?.ikametAdresi),
+                        maxLines: 2,
+                      ),
+                    ),
+                    SizedBox(
+                      width: maxW,
+                      child: TextFormField(
+                        controller: _nufusKayitYeriController,
+                        decoration: _alanDekorasyonu(
+                          context,
+                          'Nüfusa Kayıtlı Olduğu Yer',
+                          ocr?.nufusKayitYeri,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.iceAktarmaIsiId != null) ...<Widget>[
+                  const SizedBox(height: AppSpacing.xl),
+                  DefterTablosu(
+                    tur: SatirTuru.sermaye,
+                    satirlar: _sermayeSatirlari,
+                    onSatirKaydet: (DefterSatiri s) => _satirKaydet(SatirTuru.sermaye, s),
+                    onSatirSil: (String id) => _satirSil(SatirTuru.sermaye, id),
                   ),
+                  const SizedBox(height: AppSpacing.xl),
+                  DefterTablosu(
+                    tur: SatirTuru.odeme,
+                    satirlar: _odemeSatirlari,
+                    onSatirKaydet: (DefterSatiri s) => _satirKaydet(SatirTuru.odeme, s),
+                    onSatirSil: (String id) => _satirSil(SatirTuru.odeme, id),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.xl),
+                FilledButton(
+                  onPressed: _kaydediliyor ? null : _kaydet,
+                  child: _kaydediliyor
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Kaydet'),
                 ),
               ],
             ),
-            if (widget.iceAktarmaIsiId != null) ...<Widget>[
-              const SizedBox(height: AppSpacing.xl),
-              DefterTablosu(
-                tur: SatirTuru.sermaye,
-                satirlar: _sermayeSatirlari,
-                onSatirKaydet: (DefterSatiri s) => _satirKaydet(SatirTuru.sermaye, s),
-                onSatirSil: (String id) => _satirSil(SatirTuru.sermaye, id),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              DefterTablosu(
-                tur: SatirTuru.odeme,
-                satirlar: _odemeSatirlari,
-                onSatirKaydet: (DefterSatiri s) => _satirKaydet(SatirTuru.odeme, s),
-                onSatirSil: (String id) => _satirSil(SatirTuru.odeme, id),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.xl),
-            FilledButton(
-              onPressed: _kaydediliyor ? null : _kaydet,
-              child: _kaydediliyor
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Kaydet'),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
 class _TarihSecici extends StatelessWidget {
-  const _TarihSecici({required this.etiket, required this.deger, required this.onDegisti});
+  const _TarihSecici({
+    required this.etiket,
+    required this.deger,
+    required this.onDegisti,
+    this.ocrAlan,
+  });
 
   final String etiket;
   final DateTime? deger;
   final ValueChanged<DateTime?> onDegisti;
+  final OcrAlan? ocrAlan;
 
   @override
   Widget build(BuildContext context) {
-    final String metin =
-        deger == null ? 'Seçilmedi' : DateFormat('dd.MM.yyyy', 'tr_TR').format(deger!);
+    final String metin;
+    if (deger == null) {
+      metin = 'Seçilmedi';
+    } else if (ocrAlan?.metin != null &&
+        RegExp(r'^\d{4}$').hasMatch(ocrAlan!.metin.trim()) &&
+        deger!.month == 1 &&
+        deger!.day == 1) {
+      metin = ocrAlan!.metin.trim();
+    } else {
+      metin = DateFormat('dd.MM.yyyy', 'tr_TR').format(deger!);
+    }
+
+    final AppColors renkler = context.renkler;
+    final Color? ocrRenk = ocrAlan != null
+        ? (ocrAlan!.guven >= 0.9
+            ? renkler.border
+            : (ocrAlan!.guven >= 0.7 ? renkler.warning : renkler.error))
+        : null;
 
     return InkWell(
       onTap: () async {
@@ -518,12 +642,38 @@ class _TarihSecici extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: etiket,
-          suffixIcon: deger != null
-              ? IconButton(
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (ocrAlan != null)
+                Tooltip(
+                  message: 'OCR güveni: %${(ocrAlan!.guven * 100).round()}',
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Icon(Icons.auto_awesome, size: 16, color: ocrRenk ?? renkler.accent),
+                  ),
+                ),
+              if (deger != null)
+                IconButton(
                   icon: const Icon(Icons.clear, size: 18),
                   onPressed: () => onDegisti(null),
                 )
-              : const Icon(Icons.calendar_today_outlined, size: 18),
+              else
+                const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Icon(Icons.calendar_today_outlined, size: 18),
+                ),
+            ],
+          ),
+          enabledBorder: ocrAlan != null
+              ? OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: ocrRenk ?? renkler.border,
+                    width: ocrRenk == renkler.border ? 1 : 1.5,
+                  ),
+                )
+              : null,
         ),
         child: Text(metin),
       ),

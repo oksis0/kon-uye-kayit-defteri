@@ -8,5 +8,20 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- Firebase, Cloudflare Worker ve Azure'a giden istekler için gerekli
+	     (PLAN.md — sandbox bu olmadan tüm dış bağlantıları sessizce engeller). -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- Firebase Auth, oturum bilgilerini Keychain'de saklıyor — sandbox'ta
+	     bu paylaşım grubu olmadan "keychain'e erişilemedi" hatası verir. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	</array>
+	<!-- Sandbox altında bu olmadan NSOpenPanel (klasör/dosya seçme) hiç
+	     açılmaz veya seçilen klasöre erişim verilmez — "Klasör Seç" ve
+	     "İçe Aktar" butonları bu yüzden tepkisiz kalıyordu. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
 </dict>
 </plist>

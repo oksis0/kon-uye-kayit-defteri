@@ -14,7 +14,7 @@ class OrtakDefteriUygulamasi extends ConsumerWidget {
     final GoRouter router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'Ortak Pay Defteri',
+      title: 'KON Üye Kayıt Defteri',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

@@ -20,6 +20,15 @@
 // Azure Document Intelligence REST API sürümü (prebuilt-layout modeli).
 const AZURE_API_SURUMU = "2024-11-30";
 
+// Maksimum istek gövdesi boyutu (DoS ve bellek aşımına karşı 10 MB sınırı).
+const MAKS_GOVDE_BAYT = 10 * 1024 * 1024;
+
+// Güvenli R2 belge anahtarı deseni: belgeler/YYYY/MM/<id>.<uzanti>
+const GECERLI_BELGE_ANAHTARI_REGEX = /^belgeler\/\d{4}\/\d{2}\/[a-zA-Z0-9_\.-]+\.(jpg|jpeg|png|pdf)$/i;
+
+// Güvenli Azure operationId deseni: sadece alfanümerik ve tire
+const GECERLI_OPERATION_ID_REGEX = /^[a-zA-Z0-9_-]{1,128}$/;
+
 // Firebase ID token'larını imzalayan Google servis hesabının JWKS adresi.
 const FIREBASE_JWKS_URL =
   "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
@@ -66,8 +75,8 @@ export default {
         const operationId = decodeURIComponent(
           pathname.slice("/ocr/durum/".length)
         );
-        if (!operationId) {
-          return jsonYanit({ hata: "operationId eksik" }, 400);
+        if (!operationId || !GECERLI_OPERATION_ID_REGEX.test(operationId)) {
+          return jsonYanit({ hata: "Geçersiz veya eksik operationId formatı" }, 400);
         }
         return await ocrDurumSorgula(operationId, env);
       }
@@ -75,8 +84,8 @@ export default {
       // ---- Belge: R2 üzerinde CRUD (create/read/delete) ----
       if (pathname.startsWith("/belge/")) {
         const anahtar = decodeURIComponent(pathname.slice("/belge/".length));
-        if (!anahtar) {
-          return jsonYanit({ hata: "Belge anahtarı eksik" }, 400);
+        if (!anahtar || !GECERLI_BELGE_ANAHTARI_REGEX.test(anahtar)) {
+          return jsonYanit({ hata: "Geçersiz veya yetkisiz belge anahtarı formatı" }, 400);
         }
 
         if (yontem === "PUT") {
@@ -114,7 +123,16 @@ export default {
  * operationId'yi çıkarıp istemciye döner — SONUCU BEKLEMEZ.
  */
 async function ocrBaslat(request, env) {
+  const icerikUzunlugu = parseInt(request.headers.get("Content-Length") || "0", 10);
+  if (icerikUzunlugu > MAKS_GOVDE_BAYT) {
+    return jsonYanit({ hata: "Görsel boyutu 10 MB sınırını aşıyor" }, 413);
+  }
+
   const gorselVerisi = await request.arrayBuffer();
+  if (gorselVerisi.byteLength > MAKS_GOVDE_BAYT) {
+    return jsonYanit({ hata: "Görsel boyutu 10 MB sınırını aşıyor" }, 413);
+  }
+
   const icerikTuru = request.headers.get("Content-Type") || "image/jpeg";
   const azureUrl = `${env.AZURE_ENDPOINT}/documentintelligence/documentModels/prebuilt-layout:analyze?api-version=${AZURE_API_SURUMU}`;
 
@@ -229,6 +247,11 @@ async function ocrDurumSorgula(operationId, env) {
 
 /** Görsel byte'larını R2'ye yazar. */
 async function belgeYukle(anahtar, request, env) {
+  const icerikUzunlugu = parseInt(request.headers.get("Content-Length") || "0", 10);
+  if (icerikUzunlugu > MAKS_GOVDE_BAYT) {
+    return jsonYanit({ hata: "Yüklenecek belge boyutu 10 MB sınırını aşıyor" }, 413);
+  }
+
   const icerikTuru = request.headers.get("Content-Type") || "application/octet-stream";
 
   try {

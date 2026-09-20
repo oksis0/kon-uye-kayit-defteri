@@ -11,6 +11,7 @@ import '../../domain/enum/satir_turu.dart';
 import '../../domain/model/defter_satiri.dart';
 import '../../domain/model/ortak.dart';
 import 'ortak_detay_provider.dart';
+import 'widget/belge_goruntuleyici_dialog.dart';
 import 'widget/defter_tablosu.dart';
 import 'widget/kimlik_bilgi_karti.dart';
 
@@ -46,12 +47,18 @@ class OrtakDetayEkrani extends ConsumerWidget {
       appBar: AppBar(
         title: Text(ortakAsync.value?.adSoyad ?? 'Ortak Detayı'),
         actions: <Widget>[
-          if (ortakAsync.value != null)
+          if (ortakAsync.value != null) ...<Widget>[
+            IconButton(
+              icon: const Icon(Icons.document_scanner_outlined),
+              tooltip: 'Taranmış Belgeyi Gör',
+              onPressed: () => BelgeGoruntuleyiciDialog.goster(context, ortak: ortakAsync.value!),
+            ),
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Düzenle',
               onPressed: () => Navigator.of(context).pushNamed('/ortak/$ortakId/duzenle'),
             ),
+          ],
         ],
       ),
       body: govde,
@@ -124,7 +131,7 @@ class _OrtakDetayIcerik extends ConsumerWidget {
             },
           ),
           const SizedBox(height: AppSpacing.xl),
-          if (ortak.aktif) _PasifYapButonu(ortak: ortak, repo: repo),
+          IslemButonlari(ortak: ortak, repo: repo),
         ],
       ),
     );
@@ -238,28 +245,97 @@ class _KaliciSilDialoguState extends State<_KaliciSilDialogu> {
   }
 }
 
-class _PasifYapButonu extends StatelessWidget {
-  const _PasifYapButonu({required this.ortak, required this.repo});
+class IslemButonlari extends StatelessWidget {
+  const IslemButonlari({required this.ortak, this.repo, super.key});
 
   final Ortak ortak;
-  final OrtakRepository repo;
+  final OrtakRepository? repo;
+
+  Future<void> _kaliciSilAkisiniBaslat(BuildContext context) async {
+    final bool? onaylandi = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => _KaliciSilDialogu(ortak: ortak),
+    );
+    if (onaylandi != true || !context.mounted) return;
+
+    await repo?.kaliciSil(ortak.id);
+    if (context.mounted) unawaited(Navigator.of(context).maybePop());
+  }
 
   @override
   Widget build(BuildContext context) {
     final AppColors renkler = context.renkler;
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(foregroundColor: renkler.error, side: BorderSide(color: renkler.error)),
-      icon: const Icon(Icons.person_off_outlined, size: 18),
-      label: const Text('Üyeliği Sona Erdir (Pasif Yap)'),
-      onPressed: () async {
-        final String? neden = await showDialog<String>(
-          context: context,
-          builder: (BuildContext dialogContext) => _PasifNedenDialogu(),
-        );
-        if (neden != null && neden.trim().isNotEmpty) {
-          await repo.pasifYap(ortak.id, neden.trim());
-        }
-      },
+
+    return Wrap(
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: <Widget>[
+        // Pasif / Aktif Butonu (Sarı/Amber)
+        if (ortak.aktif)
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: renkler.warning,
+              side: BorderSide(color: renkler.warning),
+            ),
+            icon: const Icon(Icons.person_off_outlined, size: 18),
+            label: const Text('Üyeliği Sona Erdir (Pasif Yap)'),
+            onPressed: () async {
+              final String? neden = await showDialog<String>(
+                context: context,
+                builder: (BuildContext dialogContext) => _PasifNedenDialogu(),
+              );
+              if (neden != null && neden.trim().isNotEmpty) {
+                await repo?.pasifYap(ortak.id, neden.trim());
+              }
+            },
+          )
+        else
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: renkler.warning,
+              side: BorderSide(color: renkler.warning),
+            ),
+            icon: const Icon(Icons.how_to_reg_outlined, size: 18),
+            label: const Text('Ortağı Yeniden Aktif Yap'),
+            onPressed: () async {
+              final bool? onay = await showDialog<bool>(
+                context: context,
+                builder: (BuildContext dialogContext) => AlertDialog(
+                  title: const Text('Ortağı Aktif Yap'),
+                  content: Text(
+                    '"${ortak.adSoyad}" isimli ortak yeniden aktif duruma getirilecek. Onaylıyor musunuz?',
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      child: const Text('Vazgeç'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: renkler.warning),
+                      onPressed: () => Navigator.of(dialogContext).pop(true),
+                      child: const Text('Aktif Yap'),
+                    ),
+                  ],
+                ),
+              );
+              if (onay == true) {
+                await repo?.aktifYap(ortak.id);
+              }
+            },
+          ),
+
+        // Kalıcı Sil Butonu (Kırmızı)
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: renkler.error,
+            side: BorderSide(color: renkler.error),
+          ),
+          icon: const Icon(Icons.delete_forever_outlined, size: 18),
+          label: const Text('Ortağı Kalıcı Sil'),
+          onPressed: () => _kaliciSilAkisiniBaslat(context),
+        ),
+      ],
     );
   }
 }

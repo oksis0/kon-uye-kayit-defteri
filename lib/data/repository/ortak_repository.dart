@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -9,8 +10,10 @@ import '../../core/config/env.dart';
 import '../../core/util/turkce_normalize.dart';
 import '../../domain/model/defter_satiri.dart';
 import '../../domain/model/ortak.dart';
+import '../goruntu/goruntu_hazirlayici.dart';
 import '../uzak/firestore_servisi.dart';
 import '../yerel/dao/meta_dao.dart';
+import '../yerel/tablolar/ortaklar_tablosu.dart';
 import '../yerel/veritabani.dart';
 import '../yerel/veritabani_provider.dart';
 import 'belge_repository.dart';
@@ -108,6 +111,12 @@ class OrtakRepository {
   /// karşı — bkz. kullanıcı için ekrandaki uyarı).
   Future<void> pasifYap(String id, String neden) async {
     await _db.ortakDao.pasifYap(id, neden);
+    _firestoreyeItGorunmeden(id);
+  }
+
+  /// Pasif ortağı yeniden aktif duruma getirir.
+  Future<void> aktifYap(String id) async {
+    await _db.ortakDao.aktifYap(id);
     _firestoreyeItGorunmeden(id);
   }
 
@@ -264,8 +273,93 @@ class OrtakRepository {
     return uygulanan;
   }
 
+  /// Yereldeki TÜM ortakları ve satırlarını Firestore'a senkronize eder.
+  /// Özellikle uygulama ilk kez buluta bağlandığında veya telefondan erişim için
+  /// yereldeki tüm üyelerin eksiksiz bulutta bulunmasını garanti eder.
+  Future<int> tumunuFirestoreyeIt() async {
+    final FirestoreServisi? firestore = _firestore;
+    if (firestore == null) return 0;
+
+    final List<OrtakSatiri> satirlar = await _db.ortakDao.tumunuGetir();
+    int basarili = 0;
+
+    for (final OrtakSatiri satir in satirlar) {
+      try {
+        final Ortak ortak = _ortagaDonustur(satir);
+        final List<DefterSatiriSatiri> defterSatirlari =
+            await _db.defterSatiriDao.ortaginSatirlariniIzle(ortak.id).first;
+        await firestore.ortakYaz(ortak, defterSatirlari.map(_satiraDonustur).toList());
+        await _db.ortakDao.senkronDurumuGuncelle(satir.id, SenkronDurumu.senkron);
+        basarili++;
+      } catch (e, s) {
+        developer.log(
+          'Toplu Firestore itme hatası (${satir.adSoyad}): $e',
+          name: 'OrtakRepository',
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }
+    return basarili;
+  }
+
+  /// Yerelde görseli/dosyası olan ancak henüz R2 bulutuna yüklenmemiş
+  /// (belgeR2Anahtari boş olan) tüm belgeleri Cloudflare R2'ye yükler
+  /// ve ortağın kaydını hem yerelde hem Firestore'da günceller.
+  /// Bu sayede telefondan veya başka bir cihazdan tüm taranmış belgelere anında erişilebilir.
+  Future<int> eksikBelgeleriR2yeYukle() async {
+    if (!Env.bulutYapilandirmasiTamam) return 0;
+    final BelgeRepository? belgeRepo = _belgeRepo;
+    if (belgeRepo == null) return 0;
+
+    final List<OrtakSatiri> satirlar = await _db.ortakDao.tumunuGetir();
+    int basarili = 0;
+
+    for (final OrtakSatiri satir in satirlar) {
+      if (satir.belgeR2Anahtari != null && satir.belgeR2Anahtari!.isNotEmpty) {
+        continue;
+      }
+
+      String? dosyaYolu = satir.yerelDosyaYolu;
+      if (dosyaYolu == null || dosyaYolu.isEmpty) {
+        dosyaYolu = (await _db.kuyrukDao.ortakIdIleBul(satir.id))?.dosyaYolu;
+      }
+
+      if (dosyaYolu == null || dosyaYolu.isEmpty) continue;
+      final File dosya = File(dosyaYolu);
+      if (!await dosya.exists()) continue;
+
+      try {
+        final HazirlanmisGorsel hazir = await GoruntuHazirlayici().hazirla(dosyaYolu);
+        final String anahtar = belgeRepo.anahtarUret(satir.id);
+        await belgeRepo.yukle(anahtar, hazir.veriler);
+
+        final Ortak guncel = _ortagaDonustur(satir).copyWith(
+          belgeR2Anahtari: anahtar,
+          yerelDosyaYolu: dosyaYolu,
+          guncellemeTarihi: DateTime.now(),
+        );
+
+        await _db.ortakDao.guncelle(_companionaDonustur(guncel));
+        _firestoreyeItGorunmeden(guncel.id);
+        basarili++;
+      } catch (e, s) {
+        developer.log(
+          'Eksik belge R2 yükleme hatası (${satir.adSoyad}): $e',
+          name: 'OrtakRepository',
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }
+
+    return basarili;
+  }
+
   String _aramaAnahtariHesapla(Ortak ortak) => aramaAnahtariUret(<String?>[
         ortak.ortakNo,
+        ortak.sayfaNo,
+        ortak.tcKimlikNo,
         ortak.adSoyad,
         ortak.babaAdi,
         ortak.dogumYeri,
@@ -276,6 +370,8 @@ class OrtakRepository {
   Ortak _ortagaDonustur(OrtakSatiri satir) => Ortak(
         id: satir.id,
         ortakNo: satir.ortakNo,
+        sayfaNo: satir.sayfaNo,
+        tcKimlikNo: satir.tcKimlikNo,
         adSoyad: satir.adSoyad,
         babaAdi: satir.babaAdi,
         dogumYeri: satir.dogumYeri,
@@ -287,6 +383,7 @@ class OrtakRepository {
         cikisTarihi: satir.cikisTarihi,
         ikametAdresi: satir.ikametAdresi,
         nufusKayitYeri: satir.nufusKayitYeri,
+        yerelDosyaYolu: satir.yerelDosyaYolu,
         aramaAnahtari: satir.aramaAnahtari,
         belgeR2Anahtari: satir.belgeR2Anahtari,
         ocrGuvenOrtalama: satir.ocrGuvenOrtalama,
@@ -300,6 +397,8 @@ class OrtakRepository {
   OrtaklarCompanion _companionaDonustur(Ortak ortak) => OrtaklarCompanion.insert(
         id: ortak.id,
         ortakNo: ortak.ortakNo,
+        sayfaNo: Value(ortak.sayfaNo),
+        tcKimlikNo: Value(ortak.tcKimlikNo),
         adSoyad: ortak.adSoyad,
         babaAdi: Value(ortak.babaAdi),
         dogumYeri: Value(ortak.dogumYeri),
@@ -311,6 +410,7 @@ class OrtakRepository {
         cikisTarihi: Value(ortak.cikisTarihi),
         ikametAdresi: Value(ortak.ikametAdresi),
         nufusKayitYeri: Value(ortak.nufusKayitYeri),
+        yerelDosyaYolu: Value(ortak.yerelDosyaYolu),
         aramaAnahtari: ortak.aramaAnahtari,
         belgeR2Anahtari: Value(ortak.belgeR2Anahtari),
         ocrGuvenOrtalama: Value(ortak.ocrGuvenOrtalama),
@@ -375,9 +475,11 @@ OrtakRepository ortakRepository(Ref ref) {
 Future<void> baslangicSenkronu(Ref ref) async {
   if (!Env.bulutYapilandirmasiTamam) return;
   final OrtakRepository repo = ref.watch(ortakRepositoryProvider);
-  // ★ Önce yarım kalan kalıcı silmeleri tamamla (PLAN.md §10.2), sonra
-  // normal senkronu çalıştır — sıra önemli değil ama temizlik önce
-  // bitince pull sırasında "hayalet" kayıt görünme ihtimali azalır.
+  // ★ Önce yarım kalan kalıcı silmeleri tamamla (PLAN.md §10.2)
   await repo.yarimKalanSilmeleriTamamla();
+  // ★ Yereldeki tüm kayıtları Firestore'a ve eksik belgeleri R2'ye yükle (telefonda da görünsün)
+  await repo.tumunuFirestoreyeIt();
+  await repo.eksikBelgeleriR2yeYukle();
+  // ★ Son olarak Firestore'dan yeni güncellemeleri çek
   await repo.firestoretenSenkronizeEt();
 }

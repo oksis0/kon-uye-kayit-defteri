@@ -33,11 +33,13 @@ class DefterTablosu extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            Text(
-              tur.etiket,
-              style: AppTypography.title.copyWith(color: renkler.textPrimary),
+            Expanded(
+              child: Text(
+                tur.etiket,
+                style: AppTypography.title.copyWith(color: renkler.textPrimary),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const Spacer(),
             TextButton.icon(
               onPressed: () => _satirDialoguAc(context),
               icon: const Icon(Icons.add, size: 18),
@@ -58,76 +60,83 @@ class DefterTablosu extends StatelessWidget {
           )
         else
           Container(
+            width: double.infinity,
             decoration: BoxDecoration(
               border: Border.all(color: renkler.border),
               borderRadius: BorderRadius.circular(10),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: DataTable(
-                headingRowColor: WidgetStatePropertyAll<Color>(
-                  renkler.surfaceContainer,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: DataTable(
+                  columnSpacing: 20,
+                  horizontalMargin: 16,
+                  headingRowColor: WidgetStatePropertyAll<Color>(
+                    renkler.surfaceContainer,
+                  ),
+                  columns: const <DataColumn>[
+                    DataColumn(label: Text('Tarih')),
+                    DataColumn(label: Text('No')),
+                    DataColumn(label: Text('Mad.')),
+                    DataColumn(label: Text('Açıklama')),
+                    DataColumn(label: Text('Miktar'), numeric: true),
+                    DataColumn(label: Text('Yekün'), numeric: true),
+                    DataColumn(label: Text('')),
+                  ],
+                  rows: <DataRow>[
+                    for (final DefterSatiri satir in satirlar)
+                      DataRow(
+                        cells: <DataCell>[
+                          DataCell(Text(satir.tarihHam ?? '—')),
+                          DataCell(Text(satir.no ?? '—')),
+                          DataCell(Text(satir.madde ?? '—')),
+                          DataCell(Text(satir.aciklama ?? '—')),
+                          DataCell(
+                            Text(
+                              kurusuBicimlendir(satir.miktarKurus),
+                              style: AppTypography.sayisalTablo.copyWith(
+                                color: renkler.textPrimary,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              kurusuBicimlendir(satir.yekunKurus),
+                              style: AppTypography.sayisalTablo.copyWith(
+                                color: renkler.textPrimary,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  onPressed: () => _satirDialoguAc(
+                                    context,
+                                    mevcutSatir: satir,
+                                  ),
+                                  tooltip: 'Düzenle',
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete_outline,
+                                    size: 18,
+                                    color: renkler.error,
+                                  ),
+                                  onPressed: () => onSatirSil(satir.id),
+                                  tooltip: 'Sil',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
-                columns: const <DataColumn>[
-                  DataColumn(label: Text('Tarih')),
-                  DataColumn(label: Text('No')),
-                  DataColumn(label: Text('Mad.')),
-                  DataColumn(label: Text('Açıklama')),
-                  DataColumn(label: Text('Miktar'), numeric: true),
-                  DataColumn(label: Text('Yekün'), numeric: true),
-                  DataColumn(label: Text('')),
-                ],
-                rows: <DataRow>[
-                  for (final DefterSatiri satir in satirlar)
-                    DataRow(
-                      cells: <DataCell>[
-                        DataCell(Text(satir.tarihHam ?? '—')),
-                        DataCell(Text(satir.no ?? '—')),
-                        DataCell(Text(satir.madde ?? '—')),
-                        DataCell(Text(satir.aciklama ?? '—')),
-                        DataCell(
-                          Text(
-                            kurusuBicimlendir(satir.miktarKurus),
-                            style: AppTypography.sayisalTablo.copyWith(
-                              color: renkler.textPrimary,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Text(
-                            kurusuBicimlendir(satir.yekunKurus),
-                            style: AppTypography.sayisalTablo.copyWith(
-                              color: renkler.textPrimary,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 18),
-                                onPressed: () => _satirDialoguAc(
-                                  context,
-                                  mevcutSatir: satir,
-                                ),
-                                tooltip: 'Düzenle',
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete_outline,
-                                  size: 18,
-                                  color: renkler.error,
-                                ),
-                                onPressed: () => onSatirSil(satir.id),
-                                tooltip: 'Sil',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
               ),
             ),
           ),

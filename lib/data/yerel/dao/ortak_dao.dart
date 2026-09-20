@@ -36,6 +36,14 @@ class OrtakDao extends DatabaseAccessor<AppVeritabani> with _$OrtakDaoMixin {
     return sorgu.watch();
   }
 
+  Future<List<OrtakSatiri>> tumunuGetir({bool pasifleriDeGoster = true}) {
+    final sorgu = select(ortaklar);
+    if (!pasifleriDeGoster) {
+      sorgu.where((o) => o.aktif.equals(true));
+    }
+    return sorgu.get();
+  }
+
   Future<OrtakSatiri?> idIleBul(String id) {
     return (select(ortaklar)..where((o) => o.id.equals(id))).getSingleOrNull();
   }
@@ -70,6 +78,26 @@ class OrtakDao extends DatabaseAccessor<AppVeritabani> with _$OrtakDaoMixin {
         pasifNedeni: Value(neden),
         pasifTarihi: Value(DateTime.now()),
         guncellemeTarihi: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// Pasif ortağı yeniden aktif yapar.
+  Future<void> aktifYap(String id) {
+    return (update(ortaklar)..where((o) => o.id.equals(id))).write(
+      OrtaklarCompanion(
+        aktif: const Value(true),
+        pasifNedeni: const Value(null),
+        pasifTarihi: const Value(null),
+        guncellemeTarihi: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> senkronDurumuGuncelle(String id, SenkronDurumu durum) {
+    return (update(ortaklar)..where((o) => o.id.equals(id))).write(
+      OrtaklarCompanion(
+        senkronDurumu: Value(durum),
       ),
     );
   }

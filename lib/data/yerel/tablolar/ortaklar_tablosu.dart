@@ -15,6 +15,8 @@ enum SenkronDurumu { senkron, beklemede, hata }
 class Ortaklar extends Table {
   TextColumn get id => text()();
   TextColumn get ortakNo => text()();
+  TextColumn get sayfaNo => text().nullable()();
+  TextColumn get tcKimlikNo => text().nullable()();
   TextColumn get adSoyad => text()();
   TextColumn get babaAdi => text().nullable()();
   TextColumn get dogumYeri => text().nullable()();
@@ -26,6 +28,7 @@ class Ortaklar extends Table {
   DateTimeColumn get cikisTarihi => dateTime().nullable()();
   TextColumn get ikametAdresi => text().nullable()();
   TextColumn get nufusKayitYeri => text().nullable()();
+  TextColumn get yerelDosyaYolu => text().nullable()();
 
   /// Türkçe normalize edilmiş, tüm metin alanlarının birleşimi.
   /// Arama bu sütun üzerinden yapılır (PLAN.md §5).

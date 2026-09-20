@@ -8,6 +8,7 @@ import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/config/env.dart';
 import '../../data/repository/ocr_repository.dart';
+import '../../data/repository/ortak_repository.dart';
 import '../../data/uzak/auth_servisi.dart';
 import '../../data/uzak/worker_istemcisi.dart';
 import 'widget/kota_gosterge.dart';
@@ -80,25 +81,27 @@ class _AyarlarEkraniState extends ConsumerState<AyarlarEkrani> {
 
   Widget _bulutsuzIcerik(BuildContext context) {
     final AppColors renkler = context.renkler;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Icon(Icons.cloud_off_outlined, size: 32, color: renkler.textSecondary),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Bulut özellikleri henüz yapılandırılmadı',
-          style: AppTypography.title.copyWith(color: renkler.textPrimary),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'OCR, buluta senkron ve görsel depolama için Cloudflare Worker, '
-          'Firebase ve Azure hesaplarını kurup env.json dosyasını doldurmanız '
-          'gerekiyor (bkz. PLAN.md §12.5). O zamana kadar uygulama tamamen '
-          'çevrimdışı çalışır — hiçbir veri kaybolmaz, sonradan sorunsuz '
-          'buluta bağlanır.',
-          style: AppTypography.body.copyWith(color: renkler.textSecondary),
-        ),
-      ],
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(Icons.cloud_off_outlined, size: 32, color: renkler.textSecondary),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Bulut özellikleri henüz yapılandırılmadı',
+            style: AppTypography.title.copyWith(color: renkler.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'OCR, buluta senkron ve görsel depolama için Cloudflare Worker, '
+            'Firebase ve Azure hesaplarını kurup env.json dosyasını doldurmanız '
+            'gerekiyor (bkz. PLAN.md §12.5). O zamana kadar uygulama tamamen '
+            'çevrimdışı çalışır — hiçbir veri kaybolmaz, sonradan sorunsuz '
+            'buluta bağlanır.',
+            style: AppTypography.body.copyWith(color: renkler.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 
@@ -147,6 +150,25 @@ class _AyarlarEkraniState extends ConsumerState<AyarlarEkrani> {
             ],
           ),
           const SizedBox(height: AppSpacing.xl),
+          Text('Bulut ve Sunucu Senkronu', style: AppTypography.title.copyWith(color: renkler.textPrimary)),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Bilgisayardaki tüm ortak kayıtlarını ve taranmış belgeleri sunucuya yükler. Böylece telefonunuzdan veya başka bir cihazdan tüm belgeleri eksiksiz görebilirsiniz.',
+            style: AppTypography.caption.copyWith(color: renkler.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FilledButton.icon(
+            onPressed: _senkronCalisiyor ? null : _sunucuyaEsitle,
+            icon: _senkronCalisiyor
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.cloud_sync, size: 18),
+            label: Text(_senkronCalisiyor ? 'Sunucuya Eşitleniyor...' : 'Tüm Belgeleri ve Kayıtları Sunucuya Eşitle'),
+          ),
+          const SizedBox(height: AppSpacing.xl),
           Text('Hesap', style: AppTypography.title.copyWith(color: renkler.textPrimary)),
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -162,5 +184,46 @@ class _AyarlarEkraniState extends ConsumerState<AyarlarEkrani> {
         ],
       ),
     );
+  }
+
+  bool _senkronCalisiyor = false;
+
+  Future<void> _sunucuyaEsitle() async {
+    setState(() {
+      _senkronCalisiyor = true;
+    });
+
+    try {
+      final OrtakRepository repo = ref.read(ortakRepositoryProvider);
+      final int kayitSayisi = await repo.tumunuFirestoreyeIt();
+      final int belgeSayisi = await repo.eksikBelgeleriR2yeYukle();
+      await repo.firestoretenSenkronizeEt();
+
+      if (mounted) {
+        setState(() {
+          _senkronCalisiyor = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$kayitSayisi ortak kaydı Firestore\'a, $belgeSayisi taranmış belge Cloudflare R2 sunucusuna eşitlendi.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _senkronCalisiyor = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Senkronizasyon hatası: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

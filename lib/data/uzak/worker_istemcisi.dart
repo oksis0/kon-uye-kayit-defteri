@@ -21,21 +21,22 @@ class WorkerIstemcisi {
             baseUrl: Env.workerUrl,
             connectTimeout: const Duration(seconds: 15),
             receiveTimeout: const Duration(seconds: 30),
+            sendTimeout: const Duration(seconds: 60),
           ),
         );
 
   final AuthServisi _authServisi;
   final Dio _dio;
 
-  Future<Options> _yetkiliSecenekler({String? icerikTuru}) async {
-    final String? token = await _authServisi.idTokenAl();
+  Future<Options> _yetkiliSecenekler({String? icerikTuru, bool tokenYenile = false}) async {
+    final String? token = await _authServisi.idTokenAl(yenile: tokenYenile);
     if (token == null) {
       throw WorkerIstemcisiHatasi('Giriş yapılmamış — Worker isteği gönderilemez.');
     }
     return Options(
       headers: <String, String>{
         'Authorization': 'Bearer $token',
-        if (icerikTuru != null) 'Content-Type': icerikTuru,
+        if (icerikTuru case final String tur) 'Content-Type': tur,
       },
     );
   }
@@ -54,7 +55,7 @@ class WorkerIstemcisi {
   /// BEKLEMEZ (§2.3). Bekleme döngüsü [ocrDurumSorgula] ile burada,
   /// istemci tarafında yapılır.
   Future<String> ocrBaslat(Uint8List gorselVerisi) async {
-    final Options secenekler = await _yetkiliSecenekler(icerikTuru: 'image/jpeg');
+    Options secenekler = await _yetkiliSecenekler(icerikTuru: 'image/jpeg');
     try {
       final Response<Map<String, dynamic>> yanit = await _dio.post<Map<String, dynamic>>(
         '/ocr/basla',
@@ -67,6 +68,21 @@ class WorkerIstemcisi {
       }
       return operationId;
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        try {
+          secenekler = await _yetkiliSecenekler(icerikTuru: 'image/jpeg', tokenYenile: true);
+          final Response<Map<String, dynamic>> yanit = await _dio.post<Map<String, dynamic>>(
+            '/ocr/basla',
+            data: gorselVerisi,
+            options: secenekler,
+          );
+          final String? operationId = yanit.data?['operationId'] as String?;
+          if (operationId == null) throw WorkerIstemcisiHatasi('Worker operationId döndürmedi.');
+          return operationId;
+        } on DioException catch (retryErr) {
+          throw WorkerIstemcisiHatasi(_dioHataMesaji(retryErr));
+        }
+      }
       throw WorkerIstemcisiHatasi(_dioHataMesaji(e));
     }
   }
@@ -74,7 +90,7 @@ class WorkerIstemcisi {
   /// Tek bir durum sorgusu — Worker da tek bir Azure sorgusu yapıp döner,
   /// döngü YOK. İstemci bunu periyodik çağırarak "poll" eder.
   Future<OcrDurumYaniti> ocrDurumSorgula(String operationId) async {
-    final Options secenekler = await _yetkiliSecenekler();
+    Options secenekler = await _yetkiliSecenekler();
     try {
       final Response<Map<String, dynamic>> yanit = await _dio.get<Map<String, dynamic>>(
         '/ocr/durum/${Uri.encodeComponent(operationId)}',
@@ -87,12 +103,29 @@ class WorkerIstemcisi {
         hataMesaji: veri['mesaj'] as String?,
       );
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        try {
+          secenekler = await _yetkiliSecenekler(tokenYenile: true);
+          final Response<Map<String, dynamic>> yanit = await _dio.get<Map<String, dynamic>>(
+            '/ocr/durum/${Uri.encodeComponent(operationId)}',
+            options: secenekler,
+          );
+          final Map<String, dynamic> veri = yanit.data ?? <String, dynamic>{};
+          return OcrDurumYaniti(
+            durum: veri['durum'] as String? ?? 'hata',
+            sonuc: veri['sonuc'] as Map<String, dynamic>?,
+            hataMesaji: veri['mesaj'] as String?,
+          );
+        } on DioException catch (retryErr) {
+          throw WorkerIstemcisiHatasi(_dioHataMesaji(retryErr));
+        }
+      }
       throw WorkerIstemcisiHatasi(_dioHataMesaji(e));
     }
   }
 
   Future<void> belgeYukle(String anahtar, Uint8List veriler) async {
-    final Options secenekler = await _yetkiliSecenekler(icerikTuru: 'image/jpeg');
+    Options secenekler = await _yetkiliSecenekler(icerikTuru: 'image/jpeg');
     try {
       await _dio.put<void>(
         '/belge/${Uri.encodeComponent(anahtar)}',
@@ -100,12 +133,25 @@ class WorkerIstemcisi {
         options: secenekler,
       );
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        try {
+          secenekler = await _yetkiliSecenekler(icerikTuru: 'image/jpeg', tokenYenile: true);
+          await _dio.put<void>(
+            '/belge/${Uri.encodeComponent(anahtar)}',
+            data: veriler,
+            options: secenekler,
+          );
+          return;
+        } on DioException catch (retryErr) {
+          throw WorkerIstemcisiHatasi(_dioHataMesaji(retryErr));
+        }
+      }
       throw WorkerIstemcisiHatasi(_dioHataMesaji(e));
     }
   }
 
   Future<Uint8List> belgeGetir(String anahtar) async {
-    final Options secenekler = await _yetkiliSecenekler();
+    Options secenekler = await _yetkiliSecenekler();
     try {
       final Response<List<int>> yanit = await _dio.get<List<int>>(
         '/belge/${Uri.encodeComponent(anahtar)}',
@@ -113,18 +159,42 @@ class WorkerIstemcisi {
       );
       return Uint8List.fromList(yanit.data ?? const <int>[]);
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        try {
+          secenekler = await _yetkiliSecenekler(tokenYenile: true);
+          final Response<List<int>> yanit = await _dio.get<List<int>>(
+            '/belge/${Uri.encodeComponent(anahtar)}',
+            options: secenekler.copyWith(responseType: ResponseType.bytes),
+          );
+          return Uint8List.fromList(yanit.data ?? const <int>[]);
+        } on DioException catch (retryErr) {
+          throw WorkerIstemcisiHatasi(_dioHataMesaji(retryErr));
+        }
+      }
       throw WorkerIstemcisiHatasi(_dioHataMesaji(e));
     }
   }
 
   Future<void> belgeSil(String anahtar) async {
-    final Options secenekler = await _yetkiliSecenekler();
+    Options secenekler = await _yetkiliSecenekler();
     try {
       await _dio.delete<void>(
         '/belge/${Uri.encodeComponent(anahtar)}',
         options: secenekler,
       );
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        try {
+          secenekler = await _yetkiliSecenekler(tokenYenile: true);
+          await _dio.delete<void>(
+            '/belge/${Uri.encodeComponent(anahtar)}',
+            options: secenekler,
+          );
+          return;
+        } on DioException catch (retryErr) {
+          throw WorkerIstemcisiHatasi(_dioHataMesaji(retryErr));
+        }
+      }
       throw WorkerIstemcisiHatasi(_dioHataMesaji(e));
     }
   }
