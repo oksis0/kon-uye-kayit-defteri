@@ -80,6 +80,17 @@ class _GirisEkraniState extends ConsumerState<GirisEkrani> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
+                  Center(
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
                     'KON Üye Kayıt Defteri',
                     textAlign: TextAlign.center,

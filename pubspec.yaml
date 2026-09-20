@@ -71,6 +71,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  assets:
+    - assets/images/
+
   # ★ Fontlar asset olarak gömülü — çevrimdışı çalışma garantisi için
   # (google_fonts paketi ilk açılışta internet ister, iş bu uygulamada kabul edilemez)
   fonts:
