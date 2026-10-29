@@ -54,6 +54,19 @@ jobs:
       - name: Windows x64 Release Derle
         run: flutter build windows --release --dart-define-from-file=env.json
 
+      - name: MSVC Runtime DLL'lerini Doğrudan Paketle (App-Local CRT)
+        shell: pwsh
+        run: |
+          $msvcDirs = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC" -Recurse -Directory -Filter "Microsoft.VC14*.CRT" -ErrorAction SilentlyContinue
+          $crtDir = $msvcDirs | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
+          if ($crtDir) {
+            Write-Host "Kullanilan CRT dizini: $($crtDir.FullName)"
+            Copy-Item "$($crtDir.FullName)\*.dll" -Destination "build\windows\x64\runner\Release\" -Force
+            Get-ChildItem "build\windows\x64\runner\Release\" -Filter "*.dll" | Select-Object Name
+          } else {
+            Write-Warning "CRT dizini bulunamadi!"
+          }
+
       - name: Visual C++ 2015-2022 x64 Redistributable İndir
         shell: pwsh
         run: |

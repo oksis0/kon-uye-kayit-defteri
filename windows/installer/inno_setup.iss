@@ -31,7 +31,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "..\..\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "{#MyAppExeName},*.pdb"
-Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: skipifsourcedoesntexist deleteafterinstall; Check: VCRedistNeedsInstall
+Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: skipifsourcedoesntexist deleteafterinstall
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
@@ -46,18 +46,17 @@ function VCRedistNeedsInstall: Boolean;
 var
   Installed: Cardinal;
 begin
+  Result := True;
   if not FileExists(ExpandConstant('{tmp}\vc_redist.x64.exe')) then
   begin
     Result := False;
     Exit;
   end;
 
+  // Visual C++ 2015-2022 x64 sistemde zaten yuklu mu kontrol et
   if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Installed', Installed) then
   begin
-    Result := (Installed <> 1);
-  end
-  else
-  begin
-    Result := True;
+    if Installed = 1 then
+      Result := False;
   end;
 end;
