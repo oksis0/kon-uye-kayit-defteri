@@ -20,7 +20,9 @@ class OrtakDao extends DatabaseAccessor<AppVeritabani> with _$OrtakDaoMixin {
   }) {
     final sorgu = select(ortaklar)
       ..where((o) => o.aramaAnahtari.like('%$normalizeSorgu%'));
-    if (!pasifleriDeGoster) {
+    // Kullanıcı bir isim/numara/TC arıyorsa pasif de olsa sonucu görsün,
+    // genel listede gezinirken pasifler filtreye bağlı kalsın.
+    if (!pasifleriDeGoster && normalizeSorgu.isEmpty) {
       sorgu.where((o) => o.aktif.equals(true));
     }
     sorgu.orderBy([(o) => OrderingTerm.asc(o.adSoyad)]);

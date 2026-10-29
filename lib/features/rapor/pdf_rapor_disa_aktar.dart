@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../data/rapor/uye_listesi_pdf_servisi.dart';
 import '../../data/repository/ortak_repository.dart';
@@ -60,20 +61,35 @@ class PdfRaporDisaAktarici {
         altAciklama: altAciklama,
       );
 
-      // 2. Kaydedilecek dizini belirle
-      String? hedefDizin;
-      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        hedefDizin = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: 'PDF Raporunun Kaydedileceği Klasörü Seçin',
-        );
-        if (hedefDizin == null) return;
-      } else {
-        final Directory appDir = await getApplicationDocumentsDirectory();
-        hedefDizin = appDir.path;
-      }
-
       final String zamanDamgasi = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final String dosyaAdi = 'ortak_listesi_raporu_$zamanDamgasi.pdf';
+
+      if (Platform.isAndroid || Platform.isIOS) {
+        // Mobilde: Geçici dizine kaydet ve yerel paylaşım/görüntüleme ekranını aç
+        final Directory tempDir = await getTemporaryDirectory();
+        final File hedefDosya = File('${tempDir.path}/$dosyaAdi');
+        await hedefDosya.writeAsBytes(pdfBytes);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
+
+        await SharePlus.instance.share(
+          ShareParams(
+            files: <XFile>[XFile(hedefDosya.path, mimeType: 'application/pdf', name: dosyaAdi)],
+            text: baslik ?? 'KOOPERATİF ORTAK / ÜYE KAYIT DEFTERİ LİSTESİ',
+            subject: dosyaAdi,
+          ),
+        );
+        return;
+      }
+
+      // Masaüstünde (Windows, macOS, Linux): Kullanıcıya kayıt klasörü seçtir
+      final String? hedefDizin = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'PDF Raporunun Kaydedileceği Klasörü Seçin',
+      );
+      if (hedefDizin == null) return;
+
       final File hedefDosya = File('$hedefDizin/$dosyaAdi');
 
       // 3. Dosyayı diske yaz
@@ -84,7 +100,7 @@ class PdfRaporDisaAktarici {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('PDF Raporu hazırlandı:\n${hedefDosya.path}'),
+            content: Text('PDF Raporu kaydedildi:\n${hedefDosya.path}'),
             backgroundColor: const Color(0xFF2E7D32), // Koyu zümrüt yeşili
             duration: const Duration(seconds: 6),
             action: SnackBarAction(

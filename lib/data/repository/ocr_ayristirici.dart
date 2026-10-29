@@ -22,15 +22,6 @@ OcrSonucu azureSonucunuAyristir(Map<String, dynamic> azureYaniti) {
   final List<_Satir> satirlar = _satirlariCikar(analiz);
   final List<_KelimeGuveni> kelimeler = _kelimeleriCikar(analiz);
 
-  // Sayfa boyutları — çapa tabanlı fallback için gerekli
-  final List<dynamic> sayfaListesi = (analiz['pages'] as List?) ?? const <dynamic>[];
-  final double sayfaW = sayfaListesi.isNotEmpty
-      ? ((sayfaListesi[0] as Map<String, dynamic>?)?['width'] as num?)?.toDouble() ?? 1.0
-      : 1.0;
-  final double sayfaH = sayfaListesi.isNotEmpty
-      ? ((sayfaListesi[0] as Map<String, dynamic>?)?['height'] as num?)?.toDouble() ?? 1.0
-      : 1.0;
-
   // Tabloları sınıflandır
   final List<dynamic> hamTablolar = (analiz['tables'] as List?) ?? const <dynamic>[];
   Map<String, dynamic>? kimlikTablosu;
@@ -79,20 +70,9 @@ OcrSonucu azureSonucunuAyristir(Map<String, dynamic> azureYaniti) {
         sadeceSayi: sadeceSayi,
       );
 
-  // 3) Çapa tabanlı fallback yardımcısı — etiket/tablo bulamazsa koordinat bölgesinden ara
-  OcrAlan? capaIleBul(String alanAdi) {
-    return _capaBolgeSindeBul(
-      satirlar,
-      kelimeler,
-      sayfaW,
-      sayfaH,
-      alanAdi,
-    );
-  }
-
-  // Akıllı alan çözümleyici: Eğer kimlik tablosunda bu alanın satırı/etiketi varsa
-  // (hücre içeriği boş olsa dahi), tablodaki değeri (veya boşsa null) kullanır.
-  // Sadece tabloda bulunmayan alanlar için satır/çapa fallback'i devreye girer.
+  // Akıllı alan çözümleyici:
+  // Kimlik tablosu varsa hücre değerini alır. Tabloda yer almayan veya
+  // tablosuz belgelerde doğrudan esnek satır eşleyicisi devreye girer.
   OcrAlan? alanCoz(
     String alanAdi,
     List<String> etiketVaryasyonlari, {
@@ -102,8 +82,7 @@ OcrSonucu azureSonucunuAyristir(Map<String, dynamic> azureYaniti) {
       return kimlikHucresiAlanlari[alanAdi];
     }
     return kimlikHucresiAlanlari[alanAdi] ??
-        satirdaBul(etiketVaryasyonlari, sadeceSayi: sadeceSayi) ??
-        capaIleBul(alanAdi);
+        satirdaBul(etiketVaryasyonlari, sadeceSayi: sadeceSayi);
   }
 
   // Ortak No
@@ -990,106 +969,4 @@ String? _bosIseNull(String? metin) {
 // Çapa Tabanlı Bölge Arama (Fallback)
 // ---------------------------------------------------------------------
 
-/// "ORTAK PAY DEFTERİ" belgesindeki her alanın değer bölgesini
-/// normalize koordinatlarla tanımlar.
-///
-/// [minX], [maxX] → sayfa genisliginin fraksiyonu (0.0–1.0).
-/// [minYOfset], [maxYOfset] → çapa satırının merkez Y'sinden
-///   sayfa yüksekliğinin fraksiyonu olarak ofset.
-/// Bu yaklaşım, farklı zoom seviyelerinde çekilmiş fotoğraflarda da
-/// koordinatların sabit kalmasını sağlar.
-class _NormalBolge {
-  const _NormalBolge(this.minX, this.minYOfset, this.maxX, this.maxYOfset);
-  final double minX;
-  final double minYOfset; // basılı çapa satırından ofset (page_height fraksiyonu)
-  final double maxX;
-  final double maxYOfset;
-}
 
-/// Koordinatlar Oğuzhan Ekıncı / Şaban Ekıncı sayfaları ölçülerek kalibre edildi.
-/// "ORTAK PAY DEFTERİ" başlığı çapa; ofsetler bu başlığın merkez Y'sinden.
-const Map<String, _NormalBolge> _alanBolgeleri = <String, _NormalBolge>{
-  // Üst satır: Ortak No ve Sayfa No — başlığın hemen altında
-  'ortakNo':        _NormalBolge(0.15, 0.005, 0.52, 0.045),
-  'sayfaNo':        _NormalBolge(0.60, 0.005, 0.95, 0.045),
-  // Adı Soyadı — ortak no'nun altında, geniş bant
-  'adSoyad':        _NormalBolge(0.20, 0.025, 0.78, 0.060),
-  // Kimlik tablosu satırları — değerler tablonun sağ sütununda
-  'babaAdi':        _NormalBolge(0.45, 0.042, 0.90, 0.070),
-  'dogumYeri':      _NormalBolge(0.45, 0.060, 0.90, 0.085),
-  'dogumTarihi':    _NormalBolge(0.45, 0.075, 0.90, 0.102),
-  'girisTarihi':    _NormalBolge(0.45, 0.090, 0.90, 0.118),
-  'cikisTarihi':    _NormalBolge(0.45, 0.108, 0.90, 0.125),
-  'ikametAdresi':   _NormalBolge(0.45, 0.120, 0.90, 0.138),
-  'nufusKayitYeri': _NormalBolge(0.45, 0.138, 0.90, 0.165),
-};
-
-/// "ORTAK PAY DEFTERİ" başlığının merkez Y'sini bulur — koordinat çipası.
-double? _baslikYBul(List<_Satir> satirlar) {
-  for (final _Satir s in satirlar) {
-    final String lower = s.metin.toLowerCase();
-    if (lower.contains('pay defteri') || lower.contains('ortak pay')) {
-      return s.kutu.merkezY;
-    }
-  }
-  return null;
-}
-
-/// Etiket eşleme veya tablo çıkarma başarısız olduğunda devreye girer.
-/// Başlık (çapa) konumunu referans alarak satırın nerede olacağını hesaplar
-/// ve o bölgede geçerli değerleri toplar.
-OcrAlan? _capaBolgeSindeBul(
-  List<_Satir> satirlar,
-  List<_KelimeGuveni> kelimeler,
-  double sayfaW,
-  double sayfaH,
-  String alanAdi,
-) {
-  final _NormalBolge? bolge = _alanBolgeleri[alanAdi];
-  if (bolge == null || sayfaW <= 0 || sayfaH <= 0) return null;
-
-  // Çipa Y'sini bul; bulunamazsa sayfanın %9'unu varsay
-  final double anchorY = _baslikYBul(satirlar) ?? (sayfaH * 0.09);
-
-  final double absMinX = bolge.minX * sayfaW;
-  final double absMaxX = bolge.maxX * sayfaW;
-  final double absMinY = anchorY + bolge.minYOfset * sayfaH;
-  final double absMaxY = anchorY + bolge.maxYOfset * sayfaH;
-
-  final List<_Satir> adaylar = <_Satir>[];
-  for (final _Satir s in satirlar) {
-    // Bölge dışındaysa atla
-    if (s.kutu.merkezX < absMinX || s.kutu.merkezX > absMaxX) continue;
-    if (s.kutu.merkezY < absMinY || s.kutu.merkezY > absMaxY) continue;
-    // Etiket satırlarını değer olarak alma
-    if (_baskaEtiketMi(s.metin)) continue;
-    // Ortak No ve Sayfa No: 1-8 basamaklı sayı olmalı, 11 haneli TC No olamaz
-    if (alanAdi == 'ortakNo' || alanAdi == 'sayfaNo') {
-      final String sadeceRakam = s.metin.replaceAll(RegExp(r'\D'), '');
-      if (sadeceRakam.isEmpty || sadeceRakam.length > 8 || sadeceRakam.length == 11) {
-        continue;
-      }
-    }
-    adaylar.add(s);
-  }
-
-  if (adaylar.isEmpty) return null;
-
-  // X'e göre soldan sağa sırala, birleştir
-  adaylar.sort((_Satir a, _Satir b) => a.kutu.minX.compareTo(b.kutu.minX));
-  final String birlesmis = adaylar.map((_Satir s) => s.metin).join(' ').trim();
-  if (birlesmis.isEmpty) return null;
-
-  final _Kutu genelKutu = _Kutu(
-    adaylar.map((_Satir s) => s.kutu.minX).reduce(math.min),
-    adaylar.map((_Satir s) => s.kutu.minY).reduce(math.min),
-    adaylar.map((_Satir s) => s.kutu.maxX).reduce(math.max),
-    adaylar.map((_Satir s) => s.kutu.maxY).reduce(math.max),
-  );
-
-  // Koordinat tabanlı bulma güvenini hafif düşür (etiket eşleşmesinden daha az güvenilir)
-  return OcrAlan(
-    metin: birlesmis,
-    guven: _guvenHesapla(genelKutu, kelimeler) * 0.85,
-  );
-}

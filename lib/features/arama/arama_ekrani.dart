@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/util/csv_guvenlik.dart';
 
@@ -28,23 +29,78 @@ import 'widget/ortak_kart.dart';
 /// ★ Responsive (PLAN.md §14): ≥900px'te ana-detay yan yana (arama solda,
 /// seçili ortak sağda). Dar ekranda tam-ekran liste, seçince ayrı sayfaya
 /// gidilir.
-class AramaEkrani extends ConsumerWidget {
+class AramaEkrani extends ConsumerStatefulWidget {
   const AramaEkrani({super.key});
 
   static const double _genisEkranEsigi = 900;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // ★ Uygulama açılışında bir kerelik Firestore senkronu tetikler
-    // (bulut yapılandırılmamışsa no-op — PLAN.md §2.5). Sonuç bilerek
-    // yok sayılıyor: senkron arka planda beklenmeden ilerler, arama
-    // ekranı zaten yerel Drift üzerinden çalışıyor.
+  ConsumerState<AramaEkrani> createState() => _AramaEkraniState();
+}
+
+class _AramaEkraniState extends ConsumerState<AramaEkrani> {
+  Timer? _periyodikSenkron;
+  bool _senkronSuruyor = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Windows ve mobilde arka planda her 20 saniyede bir bulut değişikliklerini çek
+    _periyodikSenkron = Timer.periodic(const Duration(seconds: 20), (_) {
+      _arkaPlanSenkron();
+    });
+  }
+
+  @override
+  void dispose() {
+    _periyodikSenkron?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _arkaPlanSenkron() async {
+    if (!mounted || _senkronSuruyor) return;
+    try {
+      await ref.read(ortakRepositoryProvider).firestoretenSenkronizeEt();
+    } catch (_) {}
+  }
+
+  Future<void> _manuelSenkron() async {
+    if (_senkronSuruyor) return;
+    setState(() => _senkronSuruyor = true);
+    try {
+      final int sayi = await ref.read(ortakRepositoryProvider).firestoretenSenkronizeEt();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(sayi > 0
+              ? 'Buluttan $sayi yeni değişiklik güncellendi.'
+              : 'Veriler güncel — bulutla eşitlendi.'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF2E7D32),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Senkronizasyon hatası: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _senkronSuruyor = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.watch(baslangicSenkronuProvider);
 
-    final bool genisEkran = MediaQuery.sizeOf(context).width >= _genisEkranEsigi;
-    // ★ Mobilde ("İçe Aktar" + "Yeni Ortak" metinli butonlar + 2 ikon)
-    // AppBar'ı taşırırdı — dar ekranda etiketler kaldırılıp sadece ikon
-    // gösteriliyor (PLAN.md §14).
+    final bool genisEkran = MediaQuery.sizeOf(context).width >= AramaEkrani._genisEkranEsigi;
     final bool cokDarEkran = MediaQuery.sizeOf(context).width < 600;
 
     return Scaffold(
@@ -53,17 +109,27 @@ class AramaEkrani extends ConsumerWidget {
         actions: <Widget>[
           if (!cokDarEkran) ...<Widget>[
             IconButton(
+              onPressed: _senkronSuruyor ? null : _manuelSenkron,
+              icon: _senkronSuruyor
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
+              tooltip: 'Bulutla Eşitle / Yenile',
+            ),
+            IconButton(
               onPressed: () async {
                 final OrtakRepository repo = ref.read(ortakRepositoryProvider);
                 final List<Ortak> tumu =
                     await repo.tumOrtaklariGetir(pasifleriDeGoster: true);
-                if (context.mounted) {
-                  await PdfRaporDisaAktarici.calistir(
-                    context,
-                    ortaklar: tumu,
-                    baslik: 'KOOPERATİF GENEL ORTAK / ÜYE KAYIT DEFTERİ LİSTESİ',
-                  );
-                }
+                if (!context.mounted) return;
+                await PdfRaporDisaAktarici.calistir(
+                  context,
+                  ortaklar: tumu,
+                  baslik: 'KOOPERATİF GENEL ORTAK / ÜYE KAYIT DEFTERİ LİSTESİ',
+                );
               },
               icon: const Icon(Icons.picture_as_pdf_outlined),
               tooltip: 'Tüm Üyelerin PDF Raporu',
@@ -92,7 +158,7 @@ class AramaEkrani extends ConsumerWidget {
               child: FilledButton.icon(
                 onPressed: () async {
                   final dynamic yeniId = await context.push('/ortak/yeni');
-                  if (yeniId is String && yeniId.isNotEmpty && context.mounted) {
+                  if (yeniId is String && yeniId.isNotEmpty && mounted) {
                     ref.read(seciliOrtakIdProvider.notifier).sec(yeniId);
                   }
                 },
@@ -102,6 +168,17 @@ class AramaEkrani extends ConsumerWidget {
             ),
           ] else ...<Widget>[
             IconButton(
+              onPressed: _senkronSuruyor ? null : () => _manuelSenkron(),
+              icon: _senkronSuruyor
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
+              tooltip: 'Bulutla Eşitle / Yenile',
+            ),
+            IconButton(
               onPressed: () => context.push('/ice-aktarma'),
               icon: const Icon(Icons.folder_open_outlined),
               tooltip: 'İçe Aktar',
@@ -109,7 +186,7 @@ class AramaEkrani extends ConsumerWidget {
             IconButton.filled(
               onPressed: () async {
                 final dynamic yeniId = await context.push('/ortak/yeni');
-                if (yeniId is String && yeniId.isNotEmpty && context.mounted) {
+                if (yeniId is String && yeniId.isNotEmpty && mounted && context.mounted) {
                   ref.read(seciliOrtakIdProvider.notifier).sec(yeniId);
                   await context.push('/ortak/$yeniId');
                 }
@@ -121,11 +198,13 @@ class AramaEkrani extends ConsumerWidget {
               icon: const Icon(Icons.more_vert),
               tooltip: 'Diğer',
               onSelected: (String rota) async {
-                if (rota == 'pdf_rapor') {
+                if (rota == 'senkron') {
+                  await _manuelSenkron();
+                } else if (rota == 'pdf_rapor') {
                   final OrtakRepository repo = ref.read(ortakRepositoryProvider);
                   final List<Ortak> tumu =
                       await repo.tumOrtaklariGetir(pasifleriDeGoster: true);
-                  if (context.mounted) {
+                  if (mounted && context.mounted) {
                     await PdfRaporDisaAktarici.calistir(
                       context,
                       ortaklar: tumu,
@@ -133,10 +212,21 @@ class AramaEkrani extends ConsumerWidget {
                     );
                   }
                 } else {
-                  await context.push(rota);
+                  if (context.mounted) {
+                    await context.push(rota);
+                  }
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'senkron',
+                  child: ListTile(
+                    leading: Icon(Icons.sync, color: Colors.blueAccent),
+                    title: Text('Bulutla Eşitle (Yenile)'),
+                    contentPadding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
                 const PopupMenuItem<String>(
                   value: 'pdf_rapor',
                   child: ListTile(
@@ -203,20 +293,8 @@ class _AramaVeListeState extends ConsumerState<_AramaVeListe> {
     }
 
     try {
-      String? hedefDizin;
-      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        hedefDizin = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: 'Excel/CSV Dosyasının Kaydedileceği Klasörü Seçin',
-        );
-        if (hedefDizin == null) return;
-      } else {
-        final Directory appDir = await getApplicationDocumentsDirectory();
-        hedefDizin = appDir.path;
-      }
-
       final String dosyaAdi =
           'ortak_listesi_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
-      final File hedefDosya = File('$hedefDizin/$dosyaAdi');
 
       final DateFormat csvTarihFmt = DateFormat('dd.MM.yyyy');
       String tarihMetni(DateTime? tarih, String? ham) {
@@ -260,6 +338,28 @@ class _AramaVeListeState extends ConsumerState<_AramaVeListe> {
       ];
 
       final String csvIcerik = '\uFEFF${const ListToCsvConverter().convert(satirlar)}';
+
+      if (Platform.isAndroid || Platform.isIOS) {
+        final Directory tempDir = await getTemporaryDirectory();
+        final File hedefDosya = File('${tempDir.path}/$dosyaAdi');
+        await hedefDosya.writeAsString(csvIcerik);
+
+        await SharePlus.instance.share(
+          ShareParams(
+            files: <XFile>[XFile(hedefDosya.path, mimeType: 'text/csv', name: dosyaAdi)],
+            text: 'KON Üye Kayıt Defteri Excel/CSV Dökümü',
+            subject: dosyaAdi,
+          ),
+        );
+        return;
+      }
+
+      final String? hedefDizin = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Excel/CSV Dosyasının Kaydedileceği Klasörü Seçin',
+      );
+      if (hedefDizin == null) return;
+
+      final File hedefDosya = File('$hedefDizin/$dosyaAdi');
       await hedefDosya.writeAsString(csvIcerik);
 
       if (context.mounted) {

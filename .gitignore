@@ -59,5 +59,8 @@ worker/.wrangler/
 **/google-services.json
 **/GoogleService-Info.plist
 
+*.exe
+*.apk
+
 # Uygulama içi yedekler (test sırasında oluşabilir)
 /yedek_*/
