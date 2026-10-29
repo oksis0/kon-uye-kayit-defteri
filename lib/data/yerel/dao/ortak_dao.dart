@@ -103,6 +103,13 @@ class OrtakDao extends DatabaseAccessor<AppVeritabani> with _$OrtakDaoMixin {
   Future<bool> guncelle(OrtaklarCompanion satir) =>
       update(ortaklar).replace(satir);
 
+  /// Buluta henüz itilmemiş veya güncellenmesi gereken kayıtları getirir.
+  Future<List<OrtakSatiri>> bekleyenleriGetir() {
+    return (select(ortaklar)
+          ..where((o) => o.senkronDurumu.equals(SenkronDurumu.beklemede.name)))
+        .get();
+  }
+
   /// Soft delete — veri silinmez, `aktif: false` yapılır (PLAN.md §10.1).
   Future<void> pasifYap(String id, String neden) {
     return (update(ortaklar)..where((o) => o.id.equals(id))).write(
@@ -111,6 +118,7 @@ class OrtakDao extends DatabaseAccessor<AppVeritabani> with _$OrtakDaoMixin {
         pasifNedeni: Value(neden),
         pasifTarihi: Value(DateTime.now()),
         guncellemeTarihi: Value(DateTime.now()),
+        senkronDurumu: const Value(SenkronDurumu.beklemede),
       ),
     );
   }
@@ -123,6 +131,7 @@ class OrtakDao extends DatabaseAccessor<AppVeritabani> with _$OrtakDaoMixin {
         pasifNedeni: const Value(null),
         pasifTarihi: const Value(null),
         guncellemeTarihi: Value(DateTime.now()),
+        senkronDurumu: const Value(SenkronDurumu.beklemede),
       ),
     );
   }

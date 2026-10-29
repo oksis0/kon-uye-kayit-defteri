@@ -3,7 +3,6 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,6 +11,7 @@ import '../../core/util/turkce_normalize.dart';
 import '../../domain/model/defter_satiri.dart';
 import '../../domain/model/ortak.dart';
 import '../goruntu/goruntu_hazirlayici.dart';
+import '../uzak/auth_servisi.dart';
 import '../uzak/firestore_servisi.dart';
 import '../yerel/dao/meta_dao.dart';
 import '../yerel/tablolar/ortaklar_tablosu.dart';
@@ -105,7 +105,7 @@ class OrtakRepository {
     );
 
     await _db.ortakDao.ekle(_companionaDonustur(yeniOrtak));
-    _firestoreyeItGorunmeden(id);
+    await firestoreyeIt(id);
     return yeniOrtak;
   }
 
@@ -115,7 +115,7 @@ class OrtakRepository {
       guncellemeTarihi: DateTime.now(),
     );
     await _db.ortakDao.guncelle(_companionaDonustur(guncelOrtak));
-    _firestoreyeItGorunmeden(guncelOrtak.id);
+    await firestoreyeIt(guncelOrtak.id);
     return guncelOrtak;
   }
 
@@ -124,13 +124,13 @@ class OrtakRepository {
   /// karşı — bkz. kullanıcı için ekrandaki uyarı).
   Future<void> pasifYap(String id, String neden) async {
     await _db.ortakDao.pasifYap(id, neden);
-    _firestoreyeItGorunmeden(id);
+    await firestoreyeIt(id);
   }
 
   /// Pasif ortağı yeniden aktif duruma getirir.
   Future<void> aktifYap(String id) async {
     await _db.ortakDao.aktifYap(id);
-    _firestoreyeItGorunmeden(id);
+    await firestoreyeIt(id);
   }
 
   /// ★ Kalıcı silme — mezar taşlı, sıralı akış (PLAN.md §10.2). Sadece
@@ -202,45 +202,72 @@ class OrtakRepository {
     final String id = satir.id.isEmpty ? _uuid.v4() : satir.id;
     final DefterSatiri yeniSatir = satir.copyWith(id: id);
     await _db.defterSatiriDao.ekle(_satirCompanionaDonustur(yeniSatir));
-    _firestoreyeItGorunmeden(yeniSatir.ortakId);
+    await firestoreyeIt(yeniSatir.ortakId);
     return yeniSatir;
   }
 
   Future<void> satirGuncelle(DefterSatiri satir) async {
     await _db.defterSatiriDao.guncelle(_satirCompanionaDonustur(satir));
-    _firestoreyeItGorunmeden(satir.ortakId);
+    await firestoreyeIt(satir.ortakId);
   }
 
   Future<void> satirSil(String id, String ortakId) async {
     await _db.defterSatiriDao.sil(id);
-    _firestoreyeItGorunmeden(ortakId);
+    await firestoreyeIt(ortakId);
   }
 
-  /// Ortağı (kimlik + tüm satırları) Firestore'a gömülü doküman olarak
-  /// yazar — beklenmeden (fire-and-forget). Ağ hatası olursa sessizce
-  /// loglanır; yerel kayıt zaten güvende olduğu için kullanıcı akışı
-  /// kesilmez (PLAN.md §2.5). Bulut yapılandırılmamışsa hiçbir şey yapmaz.
-  void _firestoreyeItGorunmeden(String ortakId) {
+  /// Ortağı (kimlik + tüm satırları) Firestore'a yazar.
+  /// Başarılı olursa senkron durumunu 'senkron' yapar.
+  /// Ağ hatası veya zaman aşımı olursa 'beklemede' kalır ve
+  /// bir sonraki senkronizasyonda otomatik itilir.
+  Future<bool> firestoreyeIt(String ortakId) async {
     final FirestoreServisi? firestore = _firestore;
-    if (firestore == null) return;
+    if (firestore == null) return false;
 
-    unawaited(() async {
-      try {
-        final OrtakSatiri? satir = await _db.ortakDao.idIleBul(ortakId);
-        if (satir == null) return;
-        final Ortak ortak = _ortagaDonustur(satir);
-        final List<DefterSatiriSatiri> satirlar =
-            await _db.defterSatiriDao.ortaginSatirlariniIzle(ortakId).first;
-        await firestore.ortakYaz(ortak, satirlar.map(_satiraDonustur).toList());
-      } catch (e, s) {
-        developer.log(
-          'Firestore senkron başarısız (kayıt yerelde güvende)',
-          name: 'OrtakRepository',
-          error: e,
-          stackTrace: s,
-        );
-      }
-    }());
+    try {
+      final OrtakSatiri? satir = await _db.ortakDao.idIleBul(ortakId);
+      if (satir == null) return false;
+      final Ortak ortak = _ortagaDonustur(satir);
+      final List<DefterSatiriSatiri> satirlar =
+          await _db.defterSatiriDao.ortaginSatirlariniGetir(ortakId);
+      await firestore.ortakYaz(ortak, satirlar.map(_satiraDonustur).toList());
+      await _db.ortakDao.senkronDurumuGuncelle(ortakId, SenkronDurumu.senkron);
+      return true;
+    } catch (e, s) {
+      developer.log(
+        'Firestore senkron başarısız (kayıt yerelde beklemede): $ortakId',
+        name: 'OrtakRepository',
+        error: e,
+        stackTrace: s,
+      );
+      await _db.ortakDao.senkronDurumuGuncelle(ortakId, SenkronDurumu.beklemede);
+      return false;
+    }
+  }
+
+  /// Yerelde henüz Firestore'a itilmemiş veya bekleyen ortakları bulup
+  /// Firestore'a yükler.
+  Future<int> bekleyenleriFirestoreyeIt() async {
+    final FirestoreServisi? firestore = _firestore;
+    if (firestore == null) return 0;
+
+    final List<OrtakSatiri> bekleyenler = await _db.ortakDao.bekleyenleriGetir();
+    int basarili = 0;
+    for (final OrtakSatiri satir in bekleyenler) {
+      final bool tamam = await firestoreyeIt(satir.id);
+      if (tamam) basarili++;
+    }
+    return basarili;
+  }
+
+  /// Çift yönlü tam senkron:
+  /// 1. Önce bu cihazdaki henüz iletilmemiş yerel değişiklikleri (aktif/pasif/güncelleme) Firestore'a iter.
+  /// 2. Sonra Firestore'daki yeni güncellemeleri çeker ve yerel veritabanına uygular.
+  /// Döndürülen: (itilenSayisi, cekilenSayisi)
+  Future<(int, int)> tamSenkron() async {
+    final int yuklenen = await bekleyenleriFirestoreyeIt();
+    final int indirilen = await firestoretenSenkronizeEt();
+    return (yuklenen, indirilen);
   }
 
   /// Firestore'dan bu cihaza son senkrondan sonraki değişiklikleri çeker
@@ -354,7 +381,7 @@ class OrtakRepository {
         );
 
         await _db.ortakDao.guncelle(_companionaDonustur(guncel));
-        _firestoreyeItGorunmeden(guncel.id);
+        await firestoreyeIt(guncel.id);
         basarili++;
       } catch (e, s) {
         developer.log(
@@ -487,12 +514,14 @@ OrtakRepository ortakRepository(Ref ref) {
 @Riverpod(keepAlive: true)
 Future<void> baslangicSenkronu(Ref ref) async {
   if (!Env.bulutYapilandirmasiTamam) return;
-  if (FirebaseAuth.instance.currentUser == null) return;
+  final AuthServisi auth = ref.watch(authServisiProvider);
+  if (!auth.girisYapilmis) return;
   final OrtakRepository repo = ref.watch(ortakRepositoryProvider);
   try {
     // ★ Önce yarım kalan kalıcı silmeleri tamamla (PLAN.md §10.2)
     await repo.yarimKalanSilmeleriTamamla();
-    // ★ Yereldeki tüm kayıtları Firestore'a ve eksik belgeleri R2'ye yükle (telefonda da görünsün)
+    // ★ Bekleyen yerel değişiklikleri ve eksik belgeleri R2'ye yükle
+    await repo.bekleyenleriFirestoreyeIt();
     await repo.tumunuFirestoreyeIt();
     await repo.eksikBelgeleriR2yeYukle();
     // ★ Son olarak Firestore'dan yeni güncellemeleri çek

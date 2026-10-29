@@ -19,6 +19,14 @@ class DefterSatiriDao extends DatabaseAccessor<AppVeritabani>
         .watch();
   }
 
+  /// Bir ortağın tüm satırlarını doğrudan listeler (senkronizasyon ve dışa aktarım için).
+  Future<List<DefterSatiriSatiri>> ortaginSatirlariniGetir(String ortakId) {
+    return (select(defterSatirlari)
+          ..where((s) => s.ortakId.equals(ortakId))
+          ..orderBy([(s) => OrderingTerm.asc(s.siraNo)]))
+        .get();
+  }
+
   /// Yedekleme için — tüm ortakların tüm satırları (PLAN.md §11).
   Future<List<DefterSatiriSatiri>> tumunuGetir() => select(defterSatirlari).get();
 

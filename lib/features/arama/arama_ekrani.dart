@@ -60,7 +60,7 @@ class _AramaEkraniState extends ConsumerState<AramaEkrani> {
   Future<void> _arkaPlanSenkron() async {
     if (!mounted || _senkronSuruyor) return;
     try {
-      await ref.read(ortakRepositoryProvider).firestoretenSenkronizeEt();
+      await ref.read(ortakRepositoryProvider).tamSenkron();
     } catch (_) {}
   }
 
@@ -68,14 +68,16 @@ class _AramaEkraniState extends ConsumerState<AramaEkrani> {
     if (_senkronSuruyor) return;
     setState(() => _senkronSuruyor = true);
     try {
-      final int sayi = await ref.read(ortakRepositoryProvider).firestoretenSenkronizeEt();
+      final (int yuklenen, int indirilen) =
+          await ref.read(ortakRepositoryProvider).tamSenkron();
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      final String mesaj = (yuklenen > 0 || indirilen > 0)
+          ? 'Eşitleme tamamlandı: $yuklenen yerel değişiklik buluta aktarıldı, $indirilen bulut güncellemesi alındı.'
+          : 'Veriler güncel — bulutla eşitlendi.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(sayi > 0
-              ? 'Buluttan $sayi yeni değişiklik güncellendi.'
-              : 'Veriler güncel — bulutla eşitlendi.'),
+          content: Text(mesaj),
           duration: const Duration(seconds: 2),
           backgroundColor: const Color(0xFF2E7D32),
         ),

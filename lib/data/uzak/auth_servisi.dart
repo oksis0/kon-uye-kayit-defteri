@@ -57,6 +57,10 @@ class AuthServisi {
   }
 
   Future<void> girisYap({required String ePosta, required String sifre}) async {
+    if (Platform.isWindows || Platform.isLinux) {
+      await _restGirisYap(ePosta: ePosta, sifre: sifre);
+      return;
+    }
     try {
       await _auth.signInWithEmailAndPassword(email: ePosta, password: sifre);
       await _oturumTemizleYerel();
@@ -64,8 +68,11 @@ class AuthServisi {
       _authDurumKontrolcu.add(_auth.currentUser);
     } catch (e) {
       final String hataMetni = e.toString().toLowerCase();
-      // macOS Keychain erişim engeli veya keychain yetki hatası (-34018) durumunda:
-      if (hataMetni.contains('keychain') || hataMetni.contains('-34018')) {
+      // macOS Keychain erişim engeli veya keychain yetki hatası (-34018) / platform desteği olmaması durumunda:
+      if (hataMetni.contains('keychain') ||
+          hataMetni.contains('-34018') ||
+          hataMetni.contains('unsupported') ||
+          hataMetni.contains('plugin')) {
         await _restGirisYap(ePosta: ePosta, sifre: sifre);
         return;
       }

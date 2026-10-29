@@ -52,18 +52,25 @@ class FirestoreServisi {
       _db.collection('silmeTalepleri');
 
   Future<void> ortakYaz(Ortak ortak, List<DefterSatiri> satirlar) async {
-    if (!_yetkili) return;
+    if (!_yetkili) {
+      throw Exception('Buluta yazma yetkisi yok (giriş yapılmamış)');
+    }
     if (FirebaseAuth.instance.currentUser != null) {
       try {
-        await _ortaklarKoleksiyonu.doc(ortak.id).set(_ortagiDocaCevir(ortak, satirlar));
+        await _ortaklarKoleksiyonu
+            .doc(ortak.id)
+            .set(_ortagiDocaCevir(ortak, satirlar))
+            .timeout(const Duration(seconds: 4));
         return;
       } catch (e) {
-        developer.log('Firestore ortakYaz SDK hatası: $e', name: 'Firestore');
+        developer.log('Firestore ortakYaz SDK hatası veya zaman aşımı: $e (REST deneniyor)', name: 'Firestore');
       }
     }
 
     final String? token = await _authServisi?.idTokenAl();
-    if (token == null || !Env.bulutYapilandirmasiTamam) return;
+    if (token == null || !Env.bulutYapilandirmasiTamam) {
+      throw Exception('REST idToken alınamadı veya Firebase ayarları eksik');
+    }
 
     try {
       final Map<String, dynamic> docData = _ortagiDocaCevir(ortak, satirlar);
@@ -83,6 +90,7 @@ class FirestoreServisi {
       );
     } catch (e) {
       developer.log('Firestore ortakYaz REST hatası: $e', name: 'Firestore');
+      rethrow;
     }
   }
 
@@ -394,13 +402,14 @@ class FirestoreServisi {
       try {
         final QuerySnapshot<Map<String, dynamic>> anlik = await _ortaklarKoleksiyonu
             .where('guncellemeTarihi', isGreaterThan: Timestamp.fromDate(sonSenkron))
-            .get();
+            .get()
+            .timeout(const Duration(seconds: 4));
 
         return anlik.docs.map((QueryDocumentSnapshot<Map<String, dynamic>> doc) {
           return _docuOrtagaCevir(doc.id, doc.data());
         }).toList();
       } catch (e) {
-        developer.log('Firestore degisiklikleriGetir SDK hatası: $e', name: 'Firestore');
+        developer.log('Firestore degisiklikleriGetir SDK hatası veya zaman aşımı: $e (REST deneniyor)', name: 'Firestore');
       }
     }
 
@@ -410,34 +419,44 @@ class FirestoreServisi {
     }
 
     try {
-      final Response<Map<String, dynamic>> res = await _dio.get<Map<String, dynamic>>(
-        'https://firestore.googleapis.com/v1/projects/${Env.firebaseProjectId}/databases/(default)/documents/ortaklar',
-        options: Options(
-          headers: <String, String>{
-            'Authorization': 'Bearer $token',
-            'User-Agent': 'OrtakDefteri/1.0.0 (Dart/Flutter; Desktop/Mobile)',
-          },
-        ),
-      );
-      final List<dynamic>? documents = res.data?['documents'] as List<dynamic>?;
-      if (documents == null) return const <(Ortak, List<DefterSatiri>)>[];
-
       final List<(Ortak, List<DefterSatiri>)> liste = <(Ortak, List<DefterSatiri>)>[];
-      for (final dynamic doc in documents) {
-        if (doc is! Map<String, dynamic>) continue;
-        final String? name = doc['name'] as String?;
-        final String docId = name?.split('/').last ?? '';
-        final Map<String, dynamic>? fields = doc['fields'] as Map<String, dynamic>?;
-        if (fields == null) continue;
-        final Map<String, dynamic> veri = _firestoreFieldsToMap(fields);
-        final dynamic gt = veri['guncellemeTarihi'];
-        final DateTime? guncelleme = gt is Timestamp
-            ? gt.toDate()
-            : (gt is DateTime ? gt : (gt is String ? DateTime.tryParse(gt) : null));
-        if (guncelleme == null || guncelleme.isAfter(sonSenkron)) {
-          liste.add(_docuOrtagaCevir(docId, veri));
+      String? pageToken;
+      do {
+        final Map<String, dynamic> queryParams = <String, dynamic>{
+          'pageSize': 300,
+          if (pageToken != null && pageToken.isNotEmpty) 'pageToken': pageToken,
+        };
+        final Response<Map<String, dynamic>> res = await _dio.get<Map<String, dynamic>>(
+          'https://firestore.googleapis.com/v1/projects/${Env.firebaseProjectId}/databases/(default)/documents/ortaklar',
+          queryParameters: queryParams,
+          options: Options(
+            headers: <String, String>{
+              'Authorization': 'Bearer $token',
+              'User-Agent': 'OrtakDefteri/1.0.0 (Dart/Flutter; Desktop/Mobile)',
+            },
+          ),
+        );
+        final List<dynamic>? documents = res.data?['documents'] as List<dynamic>?;
+        if (documents != null) {
+          for (final dynamic doc in documents) {
+            if (doc is! Map<String, dynamic>) continue;
+            final String? name = doc['name'] as String?;
+            final String docId = name?.split('/').last ?? '';
+            final Map<String, dynamic>? fields = doc['fields'] as Map<String, dynamic>?;
+            if (fields == null) continue;
+            final Map<String, dynamic> veri = _firestoreFieldsToMap(fields);
+            final dynamic gt = veri['guncellemeTarihi'];
+            final DateTime? guncelleme = gt is Timestamp
+                ? gt.toDate()
+                : (gt is DateTime ? gt : (gt is String ? DateTime.tryParse(gt) : null));
+            if (guncelleme == null || guncelleme.isAfter(sonSenkron)) {
+              liste.add(_docuOrtagaCevir(docId, veri));
+            }
+          }
         }
-      }
+        pageToken = res.data?['nextPageToken'] as String?;
+      } while (pageToken != null && pageToken.isNotEmpty);
+
       return liste;
     } catch (e) {
       developer.log('Firestore degisiklikleriGetir REST hatası: $e', name: 'Firestore');

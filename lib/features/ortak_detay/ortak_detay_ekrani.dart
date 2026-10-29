@@ -315,6 +315,14 @@ class IslemButonlari extends StatelessWidget {
               );
               if (neden != null && neden.trim().isNotEmpty) {
                 await repo?.pasifYap(ortak.id, neden.trim());
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${ortak.adSoyad} pasif duruma getirildi ve buluta aktarıldı.'),
+                      backgroundColor: renkler.warning,
+                    ),
+                  );
+                }
               }
             },
           )
