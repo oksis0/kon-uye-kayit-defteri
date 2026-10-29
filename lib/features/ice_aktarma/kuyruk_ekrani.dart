@@ -9,11 +9,13 @@ import 'package:image_picker/image_picker.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/config/env.dart';
 import '../../data/repository/kuyruk_repository.dart';
 import '../../data/repository/ocr_repository.dart';
 import '../../domain/enum/kuyruk_durumu.dart';
 import '../../domain/model/ice_aktarma_isi.dart';
 import '../../domain/model/ocr_sonucu.dart';
+import '../ayarlar/widget/kota_gosterge.dart';
 import '../ortak_detay/ortak_duzenle_ekrani.dart';
 import 'kuyruk_provider.dart';
 import 'widget/ilerleme_cubugu.dart';
@@ -21,10 +23,37 @@ import 'widget/ilerleme_cubugu.dart';
 /// İçe aktarma kuyruğu — masaüstünde klasör seç, mobilde kamera/galeriden
 /// tek tek ekle; taranan dosyaları gör, her birini bir ortağa bağla
 /// (PLAN.md §8, §6.2).
-class KuyrukEkrani extends ConsumerWidget {
+class KuyrukEkrani extends ConsumerStatefulWidget {
   const KuyrukEkrani({super.key});
 
+  @override
+  ConsumerState<KuyrukEkrani> createState() => _KuyrukEkraniState();
+}
+
+class _KuyrukEkraniState extends ConsumerState<KuyrukEkrani> {
   bool get _mobil => Platform.isAndroid || Platform.isIOS;
+  int? _kotaKullanimi;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(kuyrukIsleyiciProvider.notifier).hazirlamayaDevamEt();
+      _kotayiGuncelle();
+    });
+  }
+
+  Future<void> _kotayiGuncelle() async {
+    if (!Env.bulutYapilandirmasiTamam) return;
+    try {
+      final int kullanim = await ref.read(ocrRepositoryProvider).kotaKullanimi();
+      if (mounted) {
+        setState(() {
+          _kotaKullanimi = kullanim;
+        });
+      }
+    } catch (_) {}
+  }
 
   void _hataGoster(BuildContext context, String baslik, Object hata) {
     try {
@@ -51,7 +80,7 @@ class KuyrukEkrani extends ConsumerWidget {
     }
   }
 
-  Future<void> _klasorSec(BuildContext context, WidgetRef ref) async {
+  Future<void> _klasorSec(BuildContext context) async {
     String? klasorYolu;
     try {
       klasorYolu = await FilePicker.platform.getDirectoryPath(
@@ -68,6 +97,7 @@ class KuyrukEkrani extends ConsumerWidget {
 
     try {
       await ref.read(kuyrukIsleyiciProvider.notifier).klasorSecVeIceAktar(klasorYolu);
+      await _kotayiGuncelle();
     } catch (e) {
       if (context.mounted) {
         _hataGoster(context, 'İçe Aktarma Hatası', e);
@@ -75,13 +105,36 @@ class KuyrukEkrani extends ConsumerWidget {
     }
   }
 
+  Future<void> _dosyaSec(BuildContext context) async {
+    FilePickerResult? sonuc;
+    try {
+      sonuc = await FilePicker.platform.pickFiles(
+        dialogTitle: 'Taranmış belgeleri seçin',
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: <String>['jpg', 'jpeg', 'png'],
+      );
+    } catch (e) {
+      if (context.mounted) {
+        _hataGoster(context, 'Dosya Seçici Hatası', e);
+      }
+      return;
+    }
+
+    if (sonuc == null || sonuc.files.isEmpty) return;
+
+    final List<String> yollar = sonuc.files
+        .map((PlatformFile f) => f.path)
+        .whereType<String>()
+        .toList();
+    if (yollar.isNotEmpty) {
+      await ref.read(kuyrukIsleyiciProvider.notifier).dosyalariEkleVeIsle(yollar);
+      await _kotayiGuncelle();
+    }
+  }
+
   /// PLAN.md §6.2 — mobilde `image_picker` ile kamera/galeri.
-  ///
-  /// ★ `imageQuality` BİLİNÇLİ OLARAK VERİLMİYOR — image_picker'ın kendi
-  /// sıkıştırmasını devre dışı bırakır. HEIC→JPEG dönüşümü ve boyut
-  /// kontrolü zaten `GoruntuHazirlayici`'nin mobil kolunda (PLAN.md §6.3)
-  /// yapılıyor; burada iki kez sıkıştırma olmasın diye ham dosya alınır.
-  Future<void> _mobildenEkle(BuildContext context, WidgetRef ref, ImageSource kaynak) async {
+  Future<void> _mobildenEkle(BuildContext context, ImageSource kaynak) async {
     XFile? dosya;
     try {
       dosya = await ImagePicker().pickImage(source: kaynak);
@@ -96,6 +149,7 @@ class KuyrukEkrani extends ConsumerWidget {
 
     try {
       await ref.read(kuyrukIsleyiciProvider.notifier).tekDosyaEkleVeIsle(dosya.path);
+      await _kotayiGuncelle();
     } catch (e) {
       if (context.mounted) {
         _hataGoster(context, 'Görsel Ekleme Hatası', e);
@@ -103,7 +157,7 @@ class KuyrukEkrani extends ConsumerWidget {
     }
   }
 
-  Future<void> _kuyruguTemizleOnayi(BuildContext context, WidgetRef ref) async {
+  Future<void> _kuyruguTemizleOnayi(BuildContext context) async {
     final bool? onay = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
@@ -138,10 +192,16 @@ class KuyrukEkrani extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final AppColors renkler = context.renkler;
     final KuyrukIlerlemeDurumu ilerleme = ref.watch(kuyrukIsleyiciProvider);
     final AsyncValue<List<IceAktarmaIsi>> listeAsync = ref.watch(kuyrukListesiProvider);
+
+    ref.listen(kuyrukIsleyiciProvider, (previous, next) {
+      if (previous?.calisiyorMu == true && next.calisiyorMu == false) {
+        _kotayiGuncelle();
+      }
+    });
 
     final bool temizlemeEtkin = listeAsync.maybeWhen(
       data: (List<IceAktarmaIsi> isler) => isler.isNotEmpty && !ilerleme.calisiyorMu,
@@ -155,21 +215,28 @@ class KuyrukEkrani extends ConsumerWidget {
             ? <Widget>[
                 if (temizlemeEtkin)
                   IconButton(
-                    onPressed: () => _kuyruguTemizleOnayi(context, ref),
+                    onPressed: () => _kuyruguTemizleOnayi(context),
                     icon: const Icon(Icons.delete_sweep_outlined),
                     tooltip: 'Kuyruğu Temizle',
                   ),
                 IconButton(
                   onPressed: ilerleme.calisiyorMu
                       ? null
-                      : () => _mobildenEkle(context, ref, ImageSource.camera),
+                      : () => ref.read(kuyrukIsleyiciProvider.notifier).ocrOlmayanlariIsle(),
+                  icon: const Icon(Icons.document_scanner_outlined),
+                  tooltip: 'Eksik Belgeleri OCR ile Tara',
+                ),
+                IconButton(
+                  onPressed: ilerleme.calisiyorMu
+                      ? null
+                      : () => _mobildenEkle(context, ImageSource.camera),
                   icon: const Icon(Icons.photo_camera_outlined),
                   tooltip: 'Kameradan Çek',
                 ),
                 IconButton(
                   onPressed: ilerleme.calisiyorMu
                       ? null
-                      : () => _mobildenEkle(context, ref, ImageSource.gallery),
+                      : () => _mobildenEkle(context, ImageSource.gallery),
                   icon: const Icon(Icons.photo_library_outlined),
                   tooltip: 'Galeriden Seç',
                 ),
@@ -178,14 +245,29 @@ class KuyrukEkrani extends ConsumerWidget {
             : <Widget>[
                 if (temizlemeEtkin)
                   IconButton(
-                    onPressed: () => _kuyruguTemizleOnayi(context, ref),
+                    onPressed: () => _kuyruguTemizleOnayi(context),
                     icon: const Icon(Icons.delete_sweep_outlined),
                     tooltip: 'Kuyruğu Temizle',
                   ),
+                IconButton(
+                  onPressed: ilerleme.calisiyorMu
+                      ? null
+                      : () => ref.read(kuyrukIsleyiciProvider.notifier).ocrOlmayanlariIsle(),
+                  icon: const Icon(Icons.document_scanner_outlined),
+                  tooltip: 'Eksik Belgeleri OCR ile Tara',
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
+                  child: OutlinedButton.icon(
+                    onPressed: ilerleme.calisiyorMu ? null : () => _dosyaSec(context),
+                    icon: const Icon(Icons.upload_file, size: 18),
+                    label: const Text('Dosya Seç'),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.md),
                   child: FilledButton.icon(
-                    onPressed: ilerleme.calisiyorMu ? null : () => _klasorSec(context, ref),
+                    onPressed: ilerleme.calisiyorMu ? null : () => _klasorSec(context),
                     icon: const Icon(Icons.folder_open_outlined, size: 18),
                     label: const Text('Klasör Seç'),
                   ),
@@ -197,6 +279,10 @@ class KuyrukEkrani extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            if (Env.bulutYapilandirmasiTamam) ...<Widget>[
+              KotaGosterge(kullanim: _kotaKullanimi ?? 0),
+              const SizedBox(height: AppSpacing.md),
+            ],
             if (ilerleme.calisiyorMu || ilerleme.toplam > 0 || ilerleme.sonHata != null) ...<Widget>[
               IlerlemeCubugu(durum: ilerleme),
               const SizedBox(height: AppSpacing.md),
@@ -271,7 +357,12 @@ class _KuyrukSatiri extends ConsumerWidget {
                             style: AppTypography.bodyVurgulu.copyWith(color: renkler.textPrimary),
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (is_.hataMesaji != null)
+                          if (is_.durum == KuyrukDurumu.tamamlandi && is_.olusanOrtakId != null)
+                            Text(
+                              'Zaten Kayıtlı Üye • İncelenmeden Otomatik Tamamlandı',
+                              style: AppTypography.caption.copyWith(color: renkler.success),
+                            )
+                          else if (is_.hataMesaji != null)
                             Text(
                               is_.hataMesaji!,
                               style: AppTypography.caption.copyWith(color: renkler.error),
@@ -314,7 +405,12 @@ class _KuyrukSatiri extends ConsumerWidget {
                       style: AppTypography.bodyVurgulu.copyWith(color: renkler.textPrimary),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (is_.hataMesaji != null)
+                    if (is_.durum == KuyrukDurumu.tamamlandi && is_.olusanOrtakId != null)
+                      Text(
+                        'Zaten Kayıtlı Üye • İncelenmeden Otomatik Tamamlandı',
+                        style: AppTypography.caption.copyWith(color: renkler.success),
+                      )
+                    else if (is_.hataMesaji != null)
                       Text(
                         is_.hataMesaji!,
                         style: AppTypography.caption.copyWith(color: renkler.error),
@@ -333,41 +429,63 @@ class _KuyrukSatiri extends ConsumerWidget {
     );
   }
 
+  Future<void> _formaGit(BuildContext context, WidgetRef ref) async {
+    final OcrSonucu? ocrSonucu = is_.ocrHamJson != null
+        ? ref.read(ocrRepositoryProvider).hamJsondanAyristir(is_.ocrHamJson!)
+        : null;
+
+    await context.push<String>(
+      '/ortak/yeni',
+      extra: OrtakYeniParametreleri(
+        iceAktarmaIsiId: is_.id,
+        onizlemeGorselYolu: is_.dosyaYolu,
+        ocrSonucu: ocrSonucu,
+      ),
+    );
+  }
+
   List<Widget> _eylemler(BuildContext context, WidgetRef ref) {
     switch (is_.durum) {
       case KuyrukDurumu.onayBekliyor:
+        final bool ocrVar = is_.ocrHamJson != null;
         return <Widget>[
           TextButton(
             onPressed: () => ref.read(kuyrukRepositoryProvider).atla(is_.id),
             child: const Text('Atla'),
           ),
           const SizedBox(width: AppSpacing.sm),
-          FilledButton(
-            onPressed: () async {
-              // ★ ocrHamJson doluysa (bulut yapılandırılmışsa) burada
-              // ayrıştırılır — form OCR sonuçlarıyla ön-dolu açılır.
-              // Boşsa (Faz 1-2 elle akışı) tamamen boş form açılır.
-              final OcrSonucu? ocrSonucu = is_.ocrHamJson != null
-                  ? ref.read(ocrRepositoryProvider).hamJsondanAyristir(is_.ocrHamJson!)
-                  : null;
-
-              await context.push<String>(
-                '/ortak/yeni',
-                extra: OrtakYeniParametreleri(
-                  iceAktarmaIsiId: is_.id,
-                  onizlemeGorselYolu: is_.dosyaYolu,
-                  ocrSonucu: ocrSonucu,
-                ),
-              );
-            },
-            child: const Text('Ortak Ekle'),
-          ),
+          if (!ocrVar) ...<Widget>[
+            OutlinedButton.icon(
+              onPressed: () =>
+                  ref.read(kuyrukIsleyiciProvider.notifier).tekIsiOcrYap(is_.id),
+              icon: const Icon(Icons.document_scanner, size: 16),
+              label: const Text('OCR ile Tara'),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            FilledButton.tonal(
+              onPressed: () => _formaGit(context, ref),
+              child: const Text('Elle Doldur'),
+            ),
+          ] else ...<Widget>[
+            FilledButton.icon(
+              onPressed: () => _formaGit(context, ref),
+              icon: const Icon(Icons.check, size: 16),
+              label: const Text('İncele ve Onayla'),
+            ),
+          ],
         ];
       case KuyrukDurumu.hata:
         return <Widget>[
           OutlinedButton(
             onPressed: () => ref.read(kuyrukRepositoryProvider).yenidenDene(is_.id),
             child: const Text('Yeniden Dene'),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          FilledButton.icon(
+            onPressed: () =>
+                ref.read(kuyrukIsleyiciProvider.notifier).tekIsiOcrYap(is_.id),
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('OCR Başlat'),
           ),
         ];
       case KuyrukDurumu.tamamlandi:

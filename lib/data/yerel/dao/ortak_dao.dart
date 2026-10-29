@@ -55,9 +55,40 @@ class OrtakDao extends DatabaseAccessor<AppVeritabani> with _$OrtakDaoMixin {
   }
 
   /// Yinelenen Ortak No kontrolü için (PLAN.md §7.4).
-  Future<OrtakSatiri?> ortakNoIleBul(String ortakNo) {
-    return (select(ortaklar)..where((o) => o.ortakNo.equals(ortakNo)))
+  Future<OrtakSatiri?> ortakNoIleBul(String ortakNo, {String? haricId}) {
+    final query = select(ortaklar)..where((o) => o.ortakNo.equals(ortakNo));
+    if (haricId != null) {
+      query.where((o) => o.id.equals(haricId).not());
+    }
+    return query.getSingleOrNull();
+  }
+
+  /// Yinelenen T.C. Kimlik No kontrolü için.
+  Future<OrtakSatiri?> tcKimlikNoIleBul(String tcKimlikNo, {String? haricId}) {
+    final query = select(ortaklar)..where((o) => o.tcKimlikNo.equals(tcKimlikNo));
+    if (haricId != null) {
+      query.where((o) => o.id.equals(haricId).not());
+    }
+    return query.getSingleOrNull();
+  }
+
+  /// Belge dosya yolu ile kayıtlı ortak var mı kontrol eder.
+  Future<OrtakSatiri?> dosyaYoluIleBul(String dosyaYolu) {
+    return (select(ortaklar)..where((o) => o.yerelDosyaYolu.equals(dosyaYolu)))
         .getSingleOrNull();
+  }
+
+  /// Bir dosyanın (tam yol veya dosya adı ile) zaten bir ortağa kayıtlı olup olmadığını denetler.
+  Future<bool> dosyaKayitliMi(String dosyaYolu) async {
+    final OrtakSatiri? tamEslesme = await dosyaYoluIleBul(dosyaYolu);
+    if (tamEslesme != null) return true;
+
+    final String dosyaAdi = Uri.file(dosyaYolu).pathSegments.last;
+    if (dosyaAdi.isEmpty) return false;
+    final List<OrtakSatiri> adaylar = await (select(ortaklar)
+          ..where((o) => o.yerelDosyaYolu.like('%$dosyaAdi')))
+        .get();
+    return adaylar.isNotEmpty;
   }
 
   Future<int> ekle(OrtaklarCompanion satir) => into(ortaklar).insert(satir);

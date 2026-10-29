@@ -31,6 +31,9 @@ jobs:
       - name: Bağımlılıkları İndir (pub get)
         run: flutter pub get
 
+      - name: Kod Üretimi (build_runner)
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: env.json Dosyasını Hazırla
         shell: pwsh
         run: |
@@ -58,3 +61,4 @@ jobs:
           name: KON_Uye_Kayit_Defteri_Windows_x64_Setup
           path: build\windows\installer\KON_Uye_Kayit_Defteri_Kurulum_x64.exe
           if-no-files-found: error
+          retention-days: 30

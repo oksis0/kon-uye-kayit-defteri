@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:ortak_defteri/app/theme/app_theme.dart';
 import 'package:ortak_defteri/domain/model/ortak.dart';
 import 'package:ortak_defteri/features/ortak_detay/ortak_detay_ekrani.dart';
+import 'package:ortak_defteri/features/ortak_detay/widget/kimlik_bilgi_karti.dart';
 
 void main() {
   setUpAll(() async {
@@ -76,5 +77,59 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ortağı Yeniden Aktif Yap'), findsOneWidget);
     expect(find.text('Ortağı Kalıcı Sil'), findsOneWidget);
+  });
+
+  testWidgets('KimlikBilgiKarti pasif ortak için Aktif Et butonu ve uyarı şeridi gösterir', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    bool aktifEdildi = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: KimlikBilgiKarti(
+              ortak: pasifOrtak,
+              onAktifEt: () => aktifEdildi = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Aktif Et'), findsOneWidget);
+    expect(find.text('Bu üye pasif durumdadır (Neden: İstifa).'), findsOneWidget);
+
+    await tester.tap(find.text('Aktif Et'));
+    await tester.pump();
+    expect(aktifEdildi, isTrue);
+  });
+
+  testWidgets('KimlikBilgiKarti aktif ortak için Aktif Et butonu ve uyarı şeridi GÖSTERMEZ', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: KimlikBilgiKarti(
+              ortak: aktifOrtak,
+              onAktifEt: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Aktif Et'), findsNothing);
+    expect(find.textContaining('Bu üye pasif durumdadır'), findsNothing);
   });
 }

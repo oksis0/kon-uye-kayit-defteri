@@ -17,6 +17,7 @@ import '../../app/theme/app_typography.dart';
 import '../../data/repository/ortak_repository.dart';
 import '../../domain/model/ortak.dart';
 import '../ortak_detay/ortak_detay_ekrani.dart';
+import '../rapor/pdf_rapor_disa_aktar.dart';
 import 'arama_provider.dart';
 import 'widget/arama_cubugu.dart';
 import 'widget/filtre_paneli.dart';
@@ -52,6 +53,22 @@ class AramaEkrani extends ConsumerWidget {
         actions: <Widget>[
           if (!cokDarEkran) ...<Widget>[
             IconButton(
+              onPressed: () async {
+                final OrtakRepository repo = ref.read(ortakRepositoryProvider);
+                final List<Ortak> tumu =
+                    await repo.tumOrtaklariGetir(pasifleriDeGoster: true);
+                if (context.mounted) {
+                  await PdfRaporDisaAktarici.calistir(
+                    context,
+                    ortaklar: tumu,
+                    baslik: 'KOOPERATİF GENEL ORTAK / ÜYE KAYIT DEFTERİ LİSTESİ',
+                  );
+                }
+              },
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              tooltip: 'Tüm Üyelerin PDF Raporu',
+            ),
+            IconButton(
               onPressed: () => context.push('/ayarlar'),
               icon: const Icon(Icons.settings_outlined),
               tooltip: 'Ayarlar',
@@ -73,7 +90,12 @@ class AramaEkrani extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(right: AppSpacing.md),
               child: FilledButton.icon(
-                onPressed: () => context.push('/ortak/yeni'),
+                onPressed: () async {
+                  final dynamic yeniId = await context.push('/ortak/yeni');
+                  if (yeniId is String && yeniId.isNotEmpty && context.mounted) {
+                    ref.read(seciliOrtakIdProvider.notifier).sec(yeniId);
+                  }
+                },
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Yeni Ortak'),
               ),
@@ -85,15 +107,45 @@ class AramaEkrani extends ConsumerWidget {
               tooltip: 'İçe Aktar',
             ),
             IconButton.filled(
-              onPressed: () => context.push('/ortak/yeni'),
+              onPressed: () async {
+                final dynamic yeniId = await context.push('/ortak/yeni');
+                if (yeniId is String && yeniId.isNotEmpty && context.mounted) {
+                  ref.read(seciliOrtakIdProvider.notifier).sec(yeniId);
+                  await context.push('/ortak/$yeniId');
+                }
+              },
               icon: const Icon(Icons.add),
               tooltip: 'Yeni Ortak',
             ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               tooltip: 'Diğer',
-              onSelected: (String rota) => context.push(rota),
+              onSelected: (String rota) async {
+                if (rota == 'pdf_rapor') {
+                  final OrtakRepository repo = ref.read(ortakRepositoryProvider);
+                  final List<Ortak> tumu =
+                      await repo.tumOrtaklariGetir(pasifleriDeGoster: true);
+                  if (context.mounted) {
+                    await PdfRaporDisaAktarici.calistir(
+                      context,
+                      ortaklar: tumu,
+                      baslik: 'KOOPERATİF GENEL ORTAK / ÜYE KAYIT DEFTERİ LİSTESİ',
+                    );
+                  }
+                } else {
+                  await context.push(rota);
+                }
+              },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'pdf_rapor',
+                  child: ListTile(
+                    leading: Icon(Icons.picture_as_pdf_outlined, color: Colors.redAccent),
+                    title: Text('PDF Raporu İndir'),
+                    contentPadding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
                 const PopupMenuItem<String>(
                   value: '/ayarlar',
                   child: ListTile(
@@ -166,6 +218,13 @@ class _AramaVeListeState extends ConsumerState<_AramaVeListe> {
           'ortak_listesi_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
       final File hedefDosya = File('$hedefDizin/$dosyaAdi');
 
+      final DateFormat csvTarihFmt = DateFormat('dd.MM.yyyy');
+      String tarihMetni(DateTime? tarih, String? ham) {
+        if (tarih != null) return csvTarihFmt.format(tarih);
+        if (ham != null && ham.trim().isNotEmpty) return ham.trim();
+        return '';
+      }
+
       final List<List<dynamic>> satirlar = <List<dynamic>>[
         <String>[
           'Ortak No',
@@ -191,9 +250,9 @@ class _AramaVeListeState extends ConsumerState<_AramaVeListe> {
             csvFormulKorumasi(o.sayfaNo),
             csvFormulKorumasi(o.babaAdi),
             csvFormulKorumasi(o.dogumYeri),
-            csvFormulKorumasi(o.dogumTarihiHam),
-            csvFormulKorumasi(o.girisTarihiHam),
-            csvFormulKorumasi(o.cikisTarihiHam),
+            csvFormulKorumasi(tarihMetni(o.dogumTarihi, o.dogumTarihiHam)),
+            csvFormulKorumasi(tarihMetni(o.girisTarihi, o.girisTarihiHam)),
+            csvFormulKorumasi(tarihMetni(o.cikisTarihi, o.cikisTarihiHam)),
             csvFormulKorumasi(o.ikametAdresi),
             csvFormulKorumasi(o.nufusKayitYeri),
             csvFormulKorumasi(o.pasifNedeni),
@@ -235,6 +294,16 @@ class _AramaVeListeState extends ConsumerState<_AramaVeListe> {
         );
       }
     }
+  }
+
+  void _pdfRaporDisaAktar(BuildContext context, List<Ortak> ortaklar) {
+    final bool aramaVarMi = _controller.text.trim().isNotEmpty;
+    PdfRaporDisaAktarici.secenekliRapor(
+      context,
+      ref,
+      filtrelenmisOrtaklar: ortaklar,
+      aramaVarMi: aramaVarMi,
+    );
   }
 
   @override
@@ -296,6 +365,19 @@ class _AramaVeListeState extends ConsumerState<_AramaVeListe> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          Tooltip(
+                            message: 'Ortak listesini PDF raporu olarak indir',
+                            child: FilledButton.tonalIcon(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              ),
+                              icon: const Icon(Icons.picture_as_pdf, size: 16, color: Colors.redAccent),
+                              label: const Text('PDF Raporu', style: TextStyle(fontSize: 12)),
+                              onPressed: () => _pdfRaporDisaAktar(context, sonuclar),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
                           Tooltip(
                             message: 'Listeyi Excel (CSV) olarak indir',
                             child: TextButton.icon(

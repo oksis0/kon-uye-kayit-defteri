@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
@@ -42,12 +43,21 @@ class _AyarlarEkraniState extends ConsumerState<AyarlarEkrani> {
   }
 
   Future<void> _kotayiYukle() async {
-    final int kullanim = await ref.read(ocrRepositoryProvider).kotaKullanimi();
-    if (mounted) {
-      setState(() {
-        _kotaKullanimi = kullanim;
-        _kotaYukleniyor = false;
-      });
+    try {
+      final int kullanim = await ref.read(ocrRepositoryProvider).kotaKullanimi();
+      if (mounted) {
+        setState(() {
+          _kotaKullanimi = kullanim;
+          _kotaYukleniyor = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _kotaKullanimi = 0;
+          _kotaYukleniyor = false;
+        });
+      }
     }
   }
 
@@ -172,14 +182,28 @@ class _AyarlarEkraniState extends ConsumerState<AyarlarEkrani> {
           Text('Hesap', style: AppTypography.title.copyWith(color: renkler.textPrimary)),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            auth.mevcutKullanici?.email ?? '—',
-            style: AppTypography.body.copyWith(color: renkler.textSecondary),
+            auth.mevcutKullaniciEPosta ?? 'Çevrimdışı / Yerel Mod (OCR için giriş yapın)',
+            style: AppTypography.body.copyWith(
+              color: auth.mevcutKullaniciEPosta != null ? renkler.textSecondary : renkler.warning,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
-            onPressed: () => unawaited(auth.cikisYap()),
-            icon: const Icon(Icons.logout, size: 18),
-            label: const Text('Çıkış Yap'),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: <Widget>[
+              if (auth.mevcutKullaniciEPosta == null)
+                FilledButton.icon(
+                  onPressed: () => context.go('/giris'),
+                  icon: const Icon(Icons.login, size: 18),
+                  label: const Text('Buluta Giriş Yap (OCR Etkinleştir)'),
+                ),
+              OutlinedButton.icon(
+                onPressed: () => unawaited(auth.cikisYap()),
+                icon: const Icon(Icons.logout, size: 18),
+                label: const Text('Çıkış Yap'),
+              ),
+            ],
           ),
         ],
       ),

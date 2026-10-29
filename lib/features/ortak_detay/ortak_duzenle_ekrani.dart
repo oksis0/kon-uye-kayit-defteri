@@ -1,10 +1,12 @@
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
+import '../../app/theme/app_typography.dart';
 import '../../core/config/env.dart';
 import '../../core/util/tarih_ayikla.dart';
 import '../../data/goruntu/goruntu_hazirlayici.dart';
@@ -177,11 +179,23 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
 
     final OrtakRepository repo = ref.read(ortakRepositoryProvider);
     final String ortakNo = _ortakNoController.text.trim();
+    final String? tcKimlikNo = _bosIseNull(_tcKimlikNoController.text);
 
-    if (_yeniKayit) {
-      final Ortak? mevcut = await repo.ortakNoIleKontrolEt(ortakNo);
-      if (mevcut != null && mounted) {
-        final bool? devamEt = await _yinelenenOrtakUyarisiGoster(mevcut);
+    // ★ Zaten kayıtlı üye kontrolü: Kullanıcı talebi doğrultusunda Ortak No'ya göre DEĞİL,
+    // kesin kimlik olan T.C. Kimlik No'ya göre ayırt edilir.
+    if (tcKimlikNo != null && tcKimlikNo.isNotEmpty) {
+      final Ortak? mevcutTc =
+          await repo.tcKimlikNoIleKontrolEt(tcKimlikNo, haricId: widget.ortakId);
+      if (mevcutTc != null && mounted) {
+        final bool? devamEt = await _yinelenenTcUyarisiGoster(mevcutTc);
+        if (devamEt != true) return;
+      }
+    } else {
+      // Sadece TC girilmemişse (eski defter kayıtları) ikincil olarak Ortak No kontrolü yapılır:
+      final Ortak? mevcutOrtakNo =
+          await repo.ortakNoIleKontrolEt(ortakNo, haricId: widget.ortakId);
+      if (mevcutOrtakNo != null && mounted) {
+        final bool? devamEt = await _yinelenenOrtakUyarisiGoster(mevcutOrtakNo);
         if (devamEt != true) return;
       }
     }
@@ -190,22 +204,43 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
     setState(() => _kaydediliyor = true);
 
     final DateTime simdi = DateTime.now();
+    final bool cikisVar = _cikisTarihi != null;
+    final bool yeniAktiflik = cikisVar ? false : (_mevcutOrtak?.aktif ?? true);
+    final String? yeniPasifNedeni = cikisVar
+        ? (_mevcutOrtak?.pasifNedeni ?? 'Üyelikten Ayrıldı')
+        : (_mevcutOrtak?.aktif == false ? _mevcutOrtak?.pasifNedeni : null);
+    final DateTime? yeniPasifTarihi = cikisVar
+        ? (_mevcutOrtak?.pasifTarihi ?? _cikisTarihi)
+        : (_mevcutOrtak?.aktif == false ? _mevcutOrtak?.pasifTarihi : null);
+
     final Ortak taslak = Ortak(
       id: widget.ortakId ?? '',
       ortakNo: ortakNo,
       sayfaNo: _bosIseNull(_sayfaNoController.text),
-      tcKimlikNo: _bosIseNull(_tcKimlikNoController.text),
+      tcKimlikNo: tcKimlikNo,
       adSoyad: _adSoyadController.text.trim(),
       babaAdi: _bosIseNull(_babaAdiController.text),
       dogumYeri: _bosIseNull(_dogumYeriController.text),
       dogumTarihi: _dogumTarihi,
+      dogumTarihiHam: _dogumTarihi != null
+          ? DateFormat('dd.MM.yyyy').format(_dogumTarihi!)
+          : (widget.ocrSonucu?.dogumTarihi?.metin ?? _mevcutOrtak?.dogumTarihiHam),
       girisTarihi: _girisTarihi,
+      girisTarihiHam: _girisTarihi != null
+          ? DateFormat('dd.MM.yyyy').format(_girisTarihi!)
+          : (widget.ocrSonucu?.girisTarihi?.metin ?? _mevcutOrtak?.girisTarihiHam),
       cikisTarihi: _cikisTarihi,
+      cikisTarihiHam: _cikisTarihi != null
+          ? DateFormat('dd.MM.yyyy').format(_cikisTarihi!)
+          : (widget.ocrSonucu?.cikisTarihi?.metin ?? _mevcutOrtak?.cikisTarihiHam),
+      aktif: yeniAktiflik,
+      pasifNedeni: yeniPasifNedeni,
+      pasifTarihi: yeniPasifTarihi,
       ikametAdresi: _bosIseNull(_ikametAdresiController.text),
       nufusKayitYeri: _bosIseNull(_nufusKayitYeriController.text),
       yerelDosyaYolu: widget.onizlemeGorselYolu ?? _mevcutOrtak?.yerelDosyaYolu,
       aramaAnahtari: '', // repository hesaplar
-      olusturmaTarihi: simdi,
+      olusturmaTarihi: _mevcutOrtak?.olusturmaTarihi ?? simdi,
       guncellemeTarihi: simdi,
     );
 
@@ -314,6 +349,60 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Yine de Ekle'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _yinelenenTcUyarisiGoster(Ortak mevcut) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Bu Üye Zaten Kayıtlı'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('T.C. Kimlik No "${mevcut.tcKimlikNo}" sistemde zaten kayıtlı:'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.withAlpha(25),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Adı Soyadı: ${mevcut.adSoyad}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('Ortak No: ${mevcut.ortakNo}'),
+                  if (mevcut.sayfaNo != null) Text('Sayfa No: ${mevcut.sayfaNo}'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text('Bu kişi kooperatifte zaten kayıtlı bir üyedir. Yine de yeni kayıt olarak eklemek veya güncellemek istiyor musunuz?'),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('İptal'),
+          ),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+              context.push('/ortak/${mevcut.id}');
+            },
+            child: const Text('Mevcut Kaydı Gör'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Yine de Devam Et'),
           ),
         ],
       ),
@@ -488,6 +577,18 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
             TextFormField(
               controller: _tcKimlikNoController,
               decoration: _alanDekorasyonu(context, 'T.C. Kimlik No', ocr?.tcKimlikNo),
+              keyboardType: TextInputType.number,
+              validator: (String? deger) {
+                if (deger == null || deger.trim().isEmpty) return null;
+                final String temiz = deger.trim();
+                if (!RegExp(r'^\d+$').hasMatch(temiz)) {
+                  return 'T.C. Kimlik No sadece rakamlardan oluşmalıdır';
+                }
+                if (temiz.length != 11) {
+                  return 'T.C. Kimlik No 11 haneli olmalıdır';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
@@ -535,6 +636,20 @@ class _OrtakDuzenleEkraniState extends ConsumerState<OrtakDuzenleEkrani> {
               ocrAlan: ocr?.cikisTarihi,
               onDegisti: (DateTime? t) => setState(() => _cikisTarihi = t),
             ),
+            if (_cikisTarihi != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: AppSpacing.xs),
+                child: Row(
+                  children: <Widget>[
+                    Icon(Icons.info_outline, size: 14, color: context.renkler.warning),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Çıkış tarihi girildiği için ortak "Pasif Üye" olarak kaydedilecektir.',
+                      style: AppTypography.caption.copyWith(color: context.renkler.warning),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _ikametAdresiController,

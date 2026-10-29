@@ -1,10 +1,16 @@
+import 'dart:convert';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/config/env.dart';
 import '../../data/repository/kuyruk_repository.dart';
+import '../../data/repository/ocr_ayristirici.dart';
 import '../../data/repository/ocr_repository.dart';
+import '../../data/uzak/auth_servisi.dart';
+import '../../data/yerel/veritabani.dart';
 import '../../domain/enum/kuyruk_durumu.dart';
 import '../../domain/model/ice_aktarma_isi.dart';
+import '../../domain/model/ocr_sonucu.dart';
 
 part 'kuyruk_provider.g.dart';
 
@@ -73,6 +79,9 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
   @override
   KuyrukIlerlemeDurumu build() => const KuyrukIlerlemeDurumu();
 
+  bool _islemSuruyor = false;
+  bool _yeniIstekVar = false;
+
   Future<void> klasorSecVeIceAktar(String klasorYolu) async {
     final KuyrukRepository repo = ref.read(kuyrukRepositoryProvider);
     state = state.kopyala(calisiyorMu: true, sonHataTemizle: true);
@@ -88,8 +97,7 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
   }
 
   /// Mobilde kamera/galeriden gelen TEK bir fotoğrafı kuyruğa ekler ve
-  /// hemen işlemeye başlar (PLAN.md §6.2). Masaüstündeki klasör akışının
-  /// mobil karşılığı.
+  /// hemen işlemeye başlar (PLAN.md §6.2).
   Future<void> tekDosyaEkleVeIsle(String dosyaYolu) async {
     final KuyrukRepository repo = ref.read(kuyrukRepositoryProvider);
     state = state.kopyala(calisiyorMu: true, sonHataTemizle: true);
@@ -104,17 +112,125 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
     await hazirlamayaDevamEt();
   }
 
+  /// Seçilen tek veya birden çok dosyayı kuyruğa ekler ve otomatik OCR başlatır.
+  Future<void> dosyalariEkleVeIsle(List<String> dosyaYollari) async {
+    final KuyrukRepository repo = ref.read(kuyrukRepositoryProvider);
+    state = state.kopyala(calisiyorMu: true, sonHataTemizle: true);
+
+    try {
+      for (final String yol in dosyaYollari) {
+        await repo.dosyaEkle(yol);
+      }
+    } catch (e) {
+      state = state.kopyala(calisiyorMu: false, sonHata: e.toString());
+      rethrow;
+    }
+
+    await hazirlamayaDevamEt();
+  }
+
+  /// Tek bir işi sıfırlayıp OCR'a gönderir
+  Future<void> tekIsiOcrYap(String isId) async {
+    final KuyrukRepository repo = ref.read(kuyrukRepositoryProvider);
+    await repo.ocrIcinYenidenKuyrugaAl(isId);
+    await hazirlamayaDevamEt();
+  }
+
+  /// Kuyrukta OCR yapılmadan kalmış tüm işleri sıfırlayıp OCR'a gönderir
+  Future<void> ocrOlmayanlariIsle() async {
+    final KuyrukRepository repo = ref.read(kuyrukRepositoryProvider);
+    final List<IceAktarmaIsi> tumIsler = await repo.tumunuIzle().first;
+    final List<IceAktarmaIsi> eksikler = tumIsler
+        .where((IceAktarmaIsi is_) =>
+            (is_.durum == KuyrukDurumu.onayBekliyor || is_.durum == KuyrukDurumu.hata) &&
+            is_.ocrHamJson == null &&
+            is_.olusanOrtakId == null)
+        .toList();
+    for (final IceAktarmaIsi is_ in eksikler) {
+      await repo.ocrIcinYenidenKuyrugaAl(is_.id);
+    }
+    await hazirlamayaDevamEt();
+  }
+
   /// ★ Kesintiye dayanıklı: her iş kendi durumunu Drift'e anında yazıyor,
   /// bu yüzden uygulama ortasında kapansa bile kalan işler bir sonraki
   /// açılışta bu metodun tekrar çağrılmasıyla kaldığı yerden devam eder.
   Future<void> hazirlamayaDevamEt() async {
+    if (_islemSuruyor) {
+      _yeniIstekVar = true;
+      return;
+    }
+
+    _islemSuruyor = true;
+    try {
+      do {
+        _yeniIstekVar = false;
+        await _hazirlaVeBekleDongusu();
+      } while (_yeniIstekVar);
+    } finally {
+      _islemSuruyor = false;
+    }
+  }
+
+  Future<void> _hazirlaVeBekleDongusu() async {
     final KuyrukRepository repo = ref.read(kuyrukRepositoryProvider);
+    final AuthServisi auth = ref.read(authServisiProvider);
+    final String? token = await auth.idTokenAl();
+    final bool bulutGirisli = token != null && token.isNotEmpty;
     final OcrRepository? ocrRepo =
-        Env.bulutYapilandirmasiTamam ? ref.read(ocrRepositoryProvider) : null;
+        (Env.bulutYapilandirmasiTamam && bulutGirisli) ? ref.read(ocrRepositoryProvider) : null;
+
+    if (Env.bulutYapilandirmasiTamam && !bulutGirisli) {
+      state = state.kopyala(
+        calisiyorMu: false,
+        sonHata: 'Bulut oturumu bulunamadı. Otomatik OCR taraması için lütfen Ayarlar veya Giriş ekranından giriş yapın.',
+      );
+      return;
+    }
 
     final List<IceAktarmaIsi> tumIsler = await repo.tumunuIzle().first;
+
+    // Eğer bulut yapılandırması ve yetkili oturum varsa; daha önce
+    // OCR yapılamadan 'onayBekliyor'a düşmüş veya hata almış işleri de otomatik olarak
+    // kuyruğa geri alıp Azure OCR'a yönlendiriyoruz.
+    if (ocrRepo != null) {
+      final List<IceAktarmaIsi> eksikler = tumIsler
+          .where((IceAktarmaIsi is_) =>
+              (is_.durum == KuyrukDurumu.onayBekliyor || is_.durum == KuyrukDurumu.hata) &&
+              is_.ocrHamJson == null &&
+              is_.olusanOrtakId == null)
+          .toList();
+      for (final IceAktarmaIsi is_ in eksikler) {
+        await repo.ocrIcinYenidenKuyrugaAl(is_.id);
+      }
+    }
+
+    // Zaten kayıtlı üyelerin belgelerini incelemeye göndermeyip doğrudan tamamlandıya bağla
+    final List<IceAktarmaIsi> onayBekleyenler = tumIsler
+        .where((IceAktarmaIsi is_) =>
+            is_.durum == KuyrukDurumu.onayBekliyor &&
+            is_.ocrHamJson != null &&
+            is_.olusanOrtakId == null)
+        .toList();
+    for (final IceAktarmaIsi is_ in onayBekleyenler) {
+      try {
+        final Object? cozulmus = jsonDecode(is_.ocrHamJson!);
+        if (cozulmus is! Map<String, dynamic>) continue;
+        final OcrSonucu ocr = azureSonucunuAyristir(cozulmus);
+        final String tc = ocr.tcKimlikNo?.metin.replaceAll(RegExp(r'\D'), '') ?? '';
+        if (tc.length == 11) {
+          final OrtakSatiri? kayitli = await repo.tcIleKayitliOrtakBul(tc);
+          if (kayitli != null) {
+            await repo.tamamlandiIsaretle(is_.id, kayitli.id);
+          }
+        }
+      } catch (_) {}
+    }
+
+    final List<IceAktarmaIsi> guncelIsler =
+        ocrRepo != null ? await repo.tumunuIzle().first : tumIsler;
     final List<IceAktarmaIsi> bekleyenler =
-        tumIsler.where((IceAktarmaIsi is_) => is_.durum == KuyrukDurumu.bekliyor).toList();
+        guncelIsler.where((IceAktarmaIsi is_) => is_.durum == KuyrukDurumu.bekliyor).toList();
 
     if (bekleyenler.isNotEmpty) {
       state = state.kopyala(
@@ -125,13 +241,14 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
       );
 
       // ★ Kota kontrolü (PLAN.md §9) — 500'de kuyruk otomatik duraklar.
-      // Firestore'a her iş için tekrar sormak yerine bir kez okuyup
-      // yereldeki döngüde düşürüyoruz (aynı anda başka kimse OCR
-      // başlatmıyor — 2 kişilik ekip senaryosu).
       int? kalanKota;
       if (ocrRepo != null) {
-        final int kullanim = await ocrRepo.kotaKullanimi();
-        kalanKota = aylikUcretsizOcrLimiti - kullanim;
+        try {
+          final int kullanim = await ocrRepo.kotaKullanimi();
+          kalanKota = aylikUcretsizOcrLimiti - kullanim;
+        } catch (_) {
+          kalanKota = null;
+        }
       }
 
       for (final IceAktarmaIsi is_ in bekleyenler) {
@@ -177,6 +294,12 @@ class KuyrukIsleyici extends _$KuyrukIsleyici {
     }
 
     state = state.kopyala(calisiyorMu: false, suankiDosyaAdiTemizle: true, ocrBekleyenSayisi: 0);
+
+    // Kuyrukta yeni eklenen bekleyen belgeler varsa tekrar işle
+    final List<IceAktarmaIsi> sonKontrol = await repo.tumunuIzle().first;
+    if (sonKontrol.any((IceAktarmaIsi is_) => is_.durum == KuyrukDurumu.bekliyor)) {
+      _yeniIstekVar = true;
+    }
   }
 
   Future<void> _ocrBeklemeDongusu(KuyrukRepository repo, OcrRepository ocrRepo) async {

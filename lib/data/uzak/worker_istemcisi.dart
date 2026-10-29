@@ -22,6 +22,10 @@ class WorkerIstemcisi {
             connectTimeout: const Duration(seconds: 15),
             receiveTimeout: const Duration(seconds: 30),
             sendTimeout: const Duration(seconds: 60),
+            headers: <String, dynamic>{
+              'User-Agent': 'OrtakDefteri/1.0.0 (Dart/Flutter; Desktop/Mobile)',
+              'Accept': 'application/json',
+            },
           ),
         );
 
@@ -36,6 +40,7 @@ class WorkerIstemcisi {
     return Options(
       headers: <String, String>{
         'Authorization': 'Bearer $token',
+        'User-Agent': 'OrtakDefteri/1.0.0 (Dart/Flutter; Desktop/Mobile)',
         if (icerikTuru case final String tur) 'Content-Type': tur,
       },
     );

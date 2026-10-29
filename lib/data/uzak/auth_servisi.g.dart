@@ -48,7 +48,7 @@ final class AuthServisiProvider
   }
 }
 
-String _$authServisiHash() => r'40a974ee4301f1253426fbf8d84f47ac953e45a3';
+String _$authServisiHash() => r'848c97e7d5d6f3a4680af6660edf216c6d43485f';
 
 /// Giriş durumunu canlı izler — router guard ve giriş ekranı bunu kullanır.
 

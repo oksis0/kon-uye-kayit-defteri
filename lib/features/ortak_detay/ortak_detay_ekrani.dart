@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
@@ -48,6 +49,24 @@ class OrtakDetayEkrani extends ConsumerWidget {
         title: Text(ortakAsync.value?.adSoyad ?? 'Ortak Detayı'),
         actions: <Widget>[
           if (ortakAsync.value != null) ...<Widget>[
+            if (!ortakAsync.value!.aktif)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.xs),
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: context.renkler.success,
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.how_to_reg, size: 16),
+                  label: const Text('Aktif Et'),
+                  onPressed: () => aktifEtOnayli(
+                    context: context,
+                    repo: ref.read(ortakRepositoryProvider),
+                    ortak: ortakAsync.value!,
+                  ),
+                ),
+              ),
             IconButton(
               icon: const Icon(Icons.document_scanner_outlined),
               tooltip: 'Taranmış Belgeyi Gör',
@@ -56,7 +75,7 @@ class OrtakDetayEkrani extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Düzenle',
-              onPressed: () => Navigator.of(context).pushNamed('/ortak/$ortakId/duzenle'),
+              onPressed: () => context.push('/ortak/$ortakId/duzenle'),
             ),
           ],
         ],
@@ -85,7 +104,16 @@ class _OrtakDetayIcerik extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Expanded(child: KimlikBilgiKarti(ortak: ortak)),
+              Expanded(
+                child: KimlikBilgiKarti(
+                  ortak: ortak,
+                  onAktifEt: () => aktifEtOnayli(
+                    context: context,
+                    repo: repo,
+                    ortak: ortak,
+                  ),
+                ),
+              ),
               _DahaFazlaMenusu(ortak: ortak, repo: repo),
             ],
           ),
@@ -293,34 +321,14 @@ class IslemButonlari extends StatelessWidget {
         else
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              foregroundColor: renkler.warning,
-              side: BorderSide(color: renkler.warning),
+              foregroundColor: renkler.success,
+              side: BorderSide(color: renkler.success),
             ),
             icon: const Icon(Icons.how_to_reg_outlined, size: 18),
             label: const Text('Ortağı Yeniden Aktif Yap'),
-            onPressed: () async {
-              final bool? onay = await showDialog<bool>(
-                context: context,
-                builder: (BuildContext dialogContext) => AlertDialog(
-                  title: const Text('Ortağı Aktif Yap'),
-                  content: Text(
-                    '"${ortak.adSoyad}" isimli ortak yeniden aktif duruma getirilecek. Onaylıyor musunuz?',
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(false),
-                      child: const Text('Vazgeç'),
-                    ),
-                    FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: renkler.warning),
-                      onPressed: () => Navigator.of(dialogContext).pop(true),
-                      child: const Text('Aktif Yap'),
-                    ),
-                  ],
-                ),
-              );
-              if (onay == true) {
-                await repo?.aktifYap(ortak.id);
+            onPressed: () {
+              if (repo != null) {
+                unawaited(aktifEtOnayli(context: context, repo: repo!, ortak: ortak));
               }
             },
           ),
@@ -383,5 +391,49 @@ class _PasifNedenDialoguState extends State<_PasifNedenDialogu> {
         ),
       ],
     );
+  }
+}
+
+/// Pasif durumdaki bir ortağı onay alarak yeniden aktif yapar.
+Future<void> aktifEtOnayli({
+  required BuildContext context,
+  required OrtakRepository repo,
+  required Ortak ortak,
+}) async {
+  final bool? onaylandi = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) => AlertDialog(
+      title: const Text('Ortağı Aktif Et'),
+      content: Text(
+        '"${ortak.adSoyad}" (Ortak No: ${ortak.ortakNo}) yeniden aktif üye '
+        'durumuna getirilecek. Onaylıyor musunuz?',
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: context.renkler.success,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Aktif Et'),
+        ),
+      ],
+    ),
+  );
+
+  if (onaylandi == true && context.mounted) {
+    await repo.aktifYap(ortak.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${ortak.adSoyad} başarıyla aktif duruma getirildi.'),
+          backgroundColor: context.renkler.success,
+        ),
+      );
+    }
   }
 }

@@ -21,6 +21,7 @@ class _YedekEkraniState extends ConsumerState<YedekEkrani> {
   DateTime? _sonYedek;
   bool _yukleniyor = true;
   bool _yedekAliniyor = false;
+  bool _geriYuklemeYapiliyor = false;
   String? _sonMesaj;
   bool _sonMesajHataMi = false;
 
@@ -65,6 +66,67 @@ class _YedekEkraniState extends ConsumerState<YedekEkrani> {
       });
     } finally {
       if (mounted) setState(() => _yedekAliniyor = false);
+    }
+  }
+
+  Future<void> _yedektenGeriYukle() async {
+    final FilePickerResult? sonuc = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: <String>['json', 'csv'],
+      dialogTitle: 'Geri yüklenecek "ortaklar.json" veya "ortaklar.csv" dosyasını seçin',
+    );
+
+    if (sonuc == null || sonuc.files.single.path == null) return;
+    final String dosyaYolu = sonuc.files.single.path!;
+
+    if (!mounted) return;
+
+    final bool? onaylandi = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        icon: const Icon(Icons.settings_backup_restore, color: Colors.blueAccent, size: 36),
+        title: const Text('Yedekten Geri Yükle'),
+        content: Text(
+          'Seçilen yedek dosyasındaki veriler mevcut veritabanına aktarılacak:\n\n'
+          '$dosyaYolu\n\n'
+          'Devam etmek istiyor musunuz?',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Geri Yükle'),
+          ),
+        ],
+      ),
+    );
+
+    if (onaylandi != true) return;
+
+    setState(() {
+      _geriYuklemeYapiliyor = true;
+      _sonMesaj = null;
+    });
+
+    try {
+      final YedekGeriYuklemeSonucu restoreSonuc =
+          await ref.read(yedekRepositoryProvider).yedektenGeriYukle(dosyaYolu);
+      setState(() {
+        _sonMesaj =
+            'Geri yükleme başarılı! ${restoreSonuc.ortakSayisi} ortak ve '
+            '${restoreSonuc.satirSayisi} defter satırı yüklendi.';
+        _sonMesajHataMi = false;
+      });
+    } catch (e) {
+      setState(() {
+        _sonMesaj = 'Geri yükleme hatası: $e';
+        _sonMesajHataMi = true;
+      });
+    } finally {
+      if (mounted) setState(() => _geriYuklemeYapiliyor = false);
     }
   }
 
@@ -126,16 +188,39 @@ class _YedekEkraniState extends ConsumerState<YedekEkrani> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
-                    FilledButton.icon(
-                      onPressed: _yedekAliniyor ? null : _yedekAl,
-                      icon: _yedekAliniyor
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.backup_outlined, size: 18),
-                      label: Text(_yedekAliniyor ? 'Yedek alınıyor...' : 'Yedek Al'),
+                    Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.sm,
+                      children: <Widget>[
+                        FilledButton.icon(
+                          onPressed: (_yedekAliniyor || _geriYuklemeYapiliyor) ? null : _yedekAl,
+                          icon: _yedekAliniyor
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.backup_outlined, size: 18),
+                          label: Text(_yedekAliniyor ? 'Yedek alınıyor...' : 'Yedek Al'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: (_yedekAliniyor || _geriYuklemeYapiliyor)
+                              ? null
+                              : _yedektenGeriYukle,
+                          icon: _geriYuklemeYapiliyor
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.settings_backup_restore, size: 18),
+                          label: Text(
+                            _geriYuklemeYapiliyor
+                                ? 'Geri yükleniyor...'
+                                : 'Yedekten Geri Yükle (Restore)',
+                          ),
+                        ),
+                      ],
                     ),
                     if (_sonMesaj != null) ...<Widget>[
                       const SizedBox(height: AppSpacing.md),

@@ -122,10 +122,28 @@ OcrSonucu azureSonucunuAyristir(Map<String, dynamic> azureYaniti) {
   final OcrAlan? babaAdi = alanCoz('babaAdi', _babaAdiVaryasyonlari);
 
   // Doğum Yeri
-  final OcrAlan? dogumYeri = alanCoz('dogumYeri', _dogumYeriVaryasyonlari);
+  OcrAlan? dogumYeri = alanCoz('dogumYeri', _dogumYeriVaryasyonlari);
 
   // Doğum Tarihi
-  final OcrAlan? dogumTarihi = alanCoz('dogumTarihi', _dogumTarihiVaryasyonlari);
+  OcrAlan? dogumTarihi = alanCoz('dogumTarihi', _dogumTarihiVaryasyonlari);
+
+  // Eğer Doğum Yeri içinde hem yer hem tarih varsa (örn. "ULUS 1965" veya "ANKARA 15.04.1974")
+  if (dogumYeri != null && (dogumTarihi == null || dogumTarihi.metin.trim().isEmpty)) {
+    final RegExp tarihRegex =
+        RegExp(r'(\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}|\b(?:19\d{2}|20\d{2})\b)');
+    final Match? eslesme = tarihRegex.firstMatch(dogumYeri.metin);
+    if (eslesme != null) {
+      final String bulunanTarih = eslesme.group(0)!;
+      final String temizYeri = dogumYeri.metin
+          .replaceFirst(bulunanTarih, '')
+          .replaceAll(RegExp(r'[:\-–—/,\s]+'), ' ')
+          .trim();
+      dogumTarihi = OcrAlan(metin: bulunanTarih, guven: dogumYeri.guven);
+      if (temizYeri.isNotEmpty) {
+        dogumYeri = OcrAlan(metin: temizYeri, guven: dogumYeri.guven);
+      }
+    }
+  }
 
   // Giriş Tarihi
   final OcrAlan? girisTarihi = alanCoz('girisTarihi', _girisTarihiVaryasyonlari);
@@ -212,10 +230,18 @@ const List<String> _babaAdiVaryasyonlari = <String>[
 ];
 
 const List<String> _dogumYeriVaryasyonlari = <String>[
+  'Doğum Yeri ve Tarihi',
+  'Doğum Yeri / Tarihi',
+  'Doğum Yeri ve Yılı',
+  'Doğum Yeri, Tarihi',
+  'D. Yeri ve Tarihi',
+  'D.Yeri ve Tarihi',
   'Doğum Yeri',
   'DOĞUM YERİ',
   'Dogum Yeri',
   'Doğum Yeri:',
+  'D. Yeri',
+  'D.Yeri',
 ];
 
 const List<String> _dogumTarihiVaryasyonlari = <String>[
@@ -224,25 +250,49 @@ const List<String> _dogumTarihiVaryasyonlari = <String>[
   'Dogum Tarihi',
   'Doğum Tarihi:',
   'Doğum Yılı',
+  'Doğum Günü',
+  'D. Tarihi',
+  'D.Tarihi',
+  'D. Tarih',
+  'D.Tarih',
 ];
 
 const List<String> _girisTarihiVaryasyonlari = <String>[
+  'Ortaklığa Giriş Tarihi',
+  'Ortaklığa Giriş',
+  'Ortaklığa Kabul Tarihi',
+  'Kayıt Tarihi',
+  'Kaydolduğu Tarih',
   'Giriş Tarihi',
   'GİRİŞ TARİHİ',
   'Giris Tarihi',
   'Giriş Tarihi:',
-  'Ortaklığa Giriş',
+  'Kabul Tarihi',
+  'Giriş',
+  'Üyelik Tarihi',
 ];
 
 const List<String> _cikisTarihiVaryasyonlari = <String>[
+  'Ortaklıktan Çıkış Tarihi',
+  'Ortaklıktan Çıkış',
+  'Ortaklıktan Ayrılış Tarihi',
+  'Ayrılma Tarihi',
   'Çıkış Tarihi',
   'ÇIKIŞ TARİHİ',
   'Cikis Tarihi',
   'Çıkış Tarihi:',
-  'Ortaklıktan Çıkış',
+  'Ayrılış Tarihi',
+  'İstifa Tarihi',
+  'Çıkış',
 ];
 
 const List<String> _ikametAdresiVaryasyonlari = <String>[
+  'İkametgah ve Adresi',
+  'İkametgâhı ve Adresi',
+  'İkametgahı ve Adresi',
+  'İkametgahı',
+  'İkametgâhı',
+  'İkametgâh',
   'İkamet Adresi',
   'İKAMET ADRESİ',
   'Ikamet Adresi',
@@ -251,6 +301,14 @@ const List<String> _ikametAdresiVaryasyonlari = <String>[
   'Ikametgah',
   'İkamet',
   'Ikamet',
+  'Adresi',
+  'ADRESİ',
+  'Adres',
+  'ADRES',
+  'Adresi:',
+  'Adres:',
+  'Ev Adresi',
+  'Tebligat Adresi',
 ];
 
 const List<String> _nufusKayitYeriVaryasyonlari = <String>[
@@ -272,7 +330,7 @@ const List<String> _tumEtiketler = <String>[
   'baba adı', 'baba adi', 'doğum yeri', 'dogum yeri',
   'doğum tarihi', 'dogum tarihi', 'giriş tarihi', 'giris tarihi',
   'çıkış tarihi', 'cikis tarihi', 'ikamet adresi', 'ikamet', 'ikametgah',
-  'nüfusa', 'nufusa', 'nüfusta', 'nufusta', 'nüfus', 'nufus',
+  'adresi', 'adres', 'nüfusa', 'nufusa', 'nüfusta', 'nufusta', 'nüfus', 'nufus',
   't.c.', 'tc', 'kimlik', 'imza yeri', 'sayfa no',
   'yönetim', 'yonetim', 'kurulu', 'karar', 'dilekçe', 'dilekce',
   'makbuz', 'yevmiye', 'açıklama', 'aciklama', 'miktarı', 'miktari', 'yekün', 'yekun',

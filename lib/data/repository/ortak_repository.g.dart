@@ -93,4 +93,4 @@ final class BaslangicSenkronuProvider
   }
 }
 
-String _$baslangicSenkronuHash() => r'a7952d9162bc2a43d3179496f92af25711b790b5';
+String _$baslangicSenkronuHash() => r'd050926f0a01fe8560e95fb0fd806f3e9adf7722';

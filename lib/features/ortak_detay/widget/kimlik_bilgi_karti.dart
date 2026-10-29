@@ -9,9 +9,10 @@ import '../../../domain/model/ortak.dart';
 import 'belge_goruntuleyici_dialog.dart';
 
 class KimlikBilgiKarti extends StatelessWidget {
-  const KimlikBilgiKarti({required this.ortak, super.key});
+  const KimlikBilgiKarti({required this.ortak, this.onAktifEt, super.key});
 
   final Ortak ortak;
+  final VoidCallback? onAktifEt;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +114,51 @@ class KimlikBilgiKarti extends StatelessWidget {
                     cloudIcon,
                     pasifRozet,
                   ],
+                ),
+              ],
+              if (!ortak.aktif) ...<Widget>[
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: renkler.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: renkler.warning.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.pause_circle_filled, size: 20, color: renkler.warning),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          ortak.pasifNedeni != null && ortak.pasifNedeni!.isNotEmpty
+                              ? 'Bu üye pasif durumdadır (Neden: ${ortak.pasifNedeni}).'
+                              : 'Bu üye pasif durumdadır.',
+                          style: AppTypography.body.copyWith(
+                            color: renkler.warning,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (onAktifEt != null) ...<Widget>[
+                        const SizedBox(width: AppSpacing.sm),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: renkler.success,
+                            foregroundColor: Colors.white,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.how_to_reg, size: 16),
+                          label: const Text('Aktif Et'),
+                          onPressed: onAktifEt,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),

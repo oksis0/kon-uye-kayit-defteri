@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:ortak_defteri/app/theme/app_theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ortak_defteri/domain/enum/satir_turu.dart';
 import 'package:ortak_defteri/domain/model/defter_satiri.dart';
 import 'package:ortak_defteri/domain/model/ortak.dart';
+import 'package:ortak_defteri/features/arama/arama_ekrani.dart';
 import 'package:ortak_defteri/features/ortak_detay/widget/defter_tablosu.dart';
 import 'package:ortak_defteri/features/ortak_detay/widget/kimlik_bilgi_karti.dart';
 
@@ -92,5 +94,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.textContaining('Sermaye Yüklenmesi'), findsOneWidget);
+  });
+
+  testWidgets('AramaEkrani dar mobil ekranda (360px) taşmasız render olur ve ikonlar sığar', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: const Scaffold(
+          body: ProviderScope(
+            child: AramaEkrani(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('KON Üye Kayıt Defteri'), findsOneWidget);
   });
 }

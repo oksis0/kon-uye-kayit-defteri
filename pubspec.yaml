@@ -53,6 +53,7 @@ dependencies:
   window_manager: ^0.4.3
 
   cupertino_icons: ^1.0.8
+  pdf: ^3.13.1
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/fonts/
 
   # ★ Fontlar asset olarak gömülü — çevrimdışı çalışma garantisi için
   # (google_fonts paketi ilk açılışta internet ister, iş bu uygulamada kabul edilemez)

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -55,6 +56,12 @@ class OrtakRepository {
         .map((List<OrtakSatiri> satirlar) => satirlar.map(_ortagaDonustur).toList());
   }
 
+  Future<List<Ortak>> tumOrtaklariGetir({bool pasifleriDeGoster = true}) async {
+    final List<OrtakSatiri> satirlar =
+        await _db.ortakDao.tumunuGetir(pasifleriDeGoster: pasifleriDeGoster);
+    return satirlar.map(_ortagaDonustur).toList();
+  }
+
   Future<Ortak?> idIleGetir(String id) async {
     final OrtakSatiri? satir = await _db.ortakDao.idIleBul(id);
     return satir == null ? null : _ortagaDonustur(satir);
@@ -67,8 +74,14 @@ class OrtakRepository {
   }
 
   /// Yinelenen Ortak No kontrolü için (PLAN.md §7.4).
-  Future<Ortak?> ortakNoIleKontrolEt(String ortakNo) async {
-    final OrtakSatiri? satir = await _db.ortakDao.ortakNoIleBul(ortakNo);
+  Future<Ortak?> ortakNoIleKontrolEt(String ortakNo, {String? haricId}) async {
+    final OrtakSatiri? satir = await _db.ortakDao.ortakNoIleBul(ortakNo, haricId: haricId);
+    return satir == null ? null : _ortagaDonustur(satir);
+  }
+
+  /// Yinelenen T.C. Kimlik No kontrolü için.
+  Future<Ortak?> tcKimlikNoIleKontrolEt(String tcKimlikNo, {String? haricId}) async {
+    final OrtakSatiri? satir = await _db.ortakDao.tcKimlikNoIleBul(tcKimlikNo, haricId: haricId);
     return satir == null ? null : _ortagaDonustur(satir);
   }
 
@@ -474,12 +487,17 @@ OrtakRepository ortakRepository(Ref ref) {
 @Riverpod(keepAlive: true)
 Future<void> baslangicSenkronu(Ref ref) async {
   if (!Env.bulutYapilandirmasiTamam) return;
+  if (FirebaseAuth.instance.currentUser == null) return;
   final OrtakRepository repo = ref.watch(ortakRepositoryProvider);
-  // ★ Önce yarım kalan kalıcı silmeleri tamamla (PLAN.md §10.2)
-  await repo.yarimKalanSilmeleriTamamla();
-  // ★ Yereldeki tüm kayıtları Firestore'a ve eksik belgeleri R2'ye yükle (telefonda da görünsün)
-  await repo.tumunuFirestoreyeIt();
-  await repo.eksikBelgeleriR2yeYukle();
-  // ★ Son olarak Firestore'dan yeni güncellemeleri çek
-  await repo.firestoretenSenkronizeEt();
+  try {
+    // ★ Önce yarım kalan kalıcı silmeleri tamamla (PLAN.md §10.2)
+    await repo.yarimKalanSilmeleriTamamla();
+    // ★ Yereldeki tüm kayıtları Firestore'a ve eksik belgeleri R2'ye yükle (telefonda da görünsün)
+    await repo.tumunuFirestoreyeIt();
+    await repo.eksikBelgeleriR2yeYukle();
+    // ★ Son olarak Firestore'dan yeni güncellemeleri çek
+    await repo.firestoretenSenkronizeEt();
+  } catch (e) {
+    developer.log('Başlangıç senkronu atlandı / hata: $e', name: 'Senkron');
+  }
 }

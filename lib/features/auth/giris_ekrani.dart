@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
+import '../../data/uzak/auth_servisi.dart';
 import 'auth_provider.dart';
 
 /// Tek ortak hesap girişi (PLAN.md §12.2). Kayıt ol / şifre sıfırla ekranı
@@ -41,6 +42,10 @@ class _GirisEkraniState extends ConsumerState<GirisEkrani> {
   }
 
   String _hataMesajiCevir(Object hata) {
+    final String hataMetni = hata.toString().toLowerCase();
+    if (hataMetni.contains('keychain') || hataMetni.contains('-34018')) {
+      return 'macOS Anahtar Zinciri (Keychain) erişimi engellendi. "Çevrimdışı / Yerel Olarak Devam Et" butonu ile uygulamaya doğrudan erişebilirsiniz.';
+    }
     if (hata is FirebaseAuthException) {
       return switch (hata.code) {
         'user-not-found' || 'invalid-credential' || 'wrong-password' =>
@@ -136,6 +141,12 @@ class _GirisEkraniState extends ConsumerState<GirisEkrani> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Giriş Yap'),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton.icon(
+                    onPressed: () => ref.read(authServisiProvider).yerelGirisYap(),
+                    icon: const Icon(Icons.offline_pin_outlined),
+                    label: const Text('Çevrimdışı / Yerel Olarak Devam Et'),
                   ),
                 ],
               ),

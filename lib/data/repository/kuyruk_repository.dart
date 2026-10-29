@@ -10,6 +10,7 @@ import '../../domain/model/ice_aktarma_isi.dart';
 import '../goruntu/goruntu_hazirlayici.dart';
 import '../yerel/veritabani.dart';
 import '../yerel/veritabani_provider.dart';
+import '../../domain/model/ocr_sonucu.dart';
 import 'ocr_repository.dart';
 
 part 'kuyruk_repository.g.dart';
@@ -80,6 +81,10 @@ class KuyrukRepository {
     final String hash = await dosyaHashHesapla(dosyaYolu);
     final bool zatenVar = await _db.kuyrukDao.hashVarMi(hash);
     if (zatenVar) return false;
+
+    // Veritabanında bir ortağa zaten kaydedilmiş görseli kuyruğa alıp mükerrer tarama yapma
+    final bool zatenKayitli = await _db.ortakDao.dosyaKayitliMi(dosyaYolu);
+    if (zatenKayitli) return false;
 
     final IceAktarmaIsi is_ = IceAktarmaIsi(
       id: _uuid.v4(),
@@ -156,7 +161,41 @@ class KuyrukRepository {
         return sonuc;
       case OcrIslemSonucuHizSiniri():
         return sonuc;
-      case OcrIslemSonucuBitti(:final String hamJson):
+      case OcrIslemSonucuBitti(sonuc: final OcrSonucu ayristirilmisSonuc, :final String hamJson):
+        // OCR sonucundan T.C. Kimlik No'yu kontrol et
+        final String? hamTc = ayristirilmisSonuc.tcKimlikNo?.metin;
+        final String tcTemiz = hamTc?.replaceAll(RegExp(r'\D'), '') ?? '';
+
+        OrtakSatiri? kayitliOrtak;
+        if (tcTemiz.length == 11) {
+          kayitliOrtak = await _db.ortakDao.tcKimlikNoIleBul(tcTemiz);
+        }
+
+        if (kayitliOrtak != null) {
+          // ★ BU ÜYE ZATEN KAYITLI!
+          // Kullanıcı talebi: Kayıt edilmiş dosya hiç incelemeye gönderilmesin.
+          // Doğrudan tamamlandı durumuna alıp mevcut ortağa bağlıyoruz.
+          await _db.kuyrukDao.guncelle(
+            IceAktarmaKuyruguCompanion(
+              id: Value(isId),
+              durum: const Value(KuyrukDurumu.tamamlandi),
+              islendi: const Value(true),
+              olusanOrtakId: Value(kayitliOrtak.id),
+              ocrHamJson: Value(hamJson),
+            ),
+          );
+
+          if (kayitliOrtak.yerelDosyaYolu == null || kayitliOrtak.yerelDosyaYolu!.isEmpty) {
+            await _db.ortakDao.guncelle(
+              kayitliOrtak.toCompanion(true).copyWith(
+                yerelDosyaYolu: Value(satir.dosyaYolu),
+                guncellemeTarihi: Value(DateTime.now()),
+              ),
+            );
+          }
+          return sonuc;
+        }
+
         await _db.kuyrukDao.guncelle(
           IceAktarmaKuyruguCompanion(
             id: Value(isId),
@@ -212,6 +251,20 @@ class KuyrukRepository {
     );
   }
 
+  /// Önceden OCR yapılmadan onayBekliyor'a düşmüş veya hata almış işi
+  /// tekrar sıfırdan OCR döngüsüne alır.
+  Future<void> ocrIcinYenidenKuyrugaAl(String isId) {
+    return _db.kuyrukDao.guncelle(
+      IceAktarmaKuyruguCompanion(
+        id: Value(isId),
+        durum: const Value(KuyrukDurumu.bekliyor),
+        hataMesaji: const Value(null),
+        ocrHamJson: const Value(null),
+        azureOperationId: const Value(null),
+      ),
+    );
+  }
+
   /// Kuyruktaki tüm kayıtları temizler.
   Future<void> kuyruguTemizle() async {
     await _db.kuyrukDao.tumunuSil();
@@ -222,6 +275,9 @@ class KuyrukRepository {
     final IceAktarmaIsiSatiri? satir = await _db.kuyrukDao.ortakIdIleBul(ortakId);
     return satir?.dosyaYolu;
   }
+
+  /// T.C. Kimlik No ile sistemde kayıtlı ortak olup olmadığını sorgular
+  Future<OrtakSatiri?> tcIleKayitliOrtakBul(String tc) => _db.ortakDao.tcKimlikNoIleBul(tc);
 
   IceAktarmaIsi _iseDonustur(IceAktarmaIsiSatiri satir) => IceAktarmaIsi(
         id: satir.id,

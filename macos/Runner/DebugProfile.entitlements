@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.app-sandbox</key>
-	<true/>
+	<false/>
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
 	<key>com.apple.security.network.server</key>
@@ -12,12 +12,6 @@
 	     (PLAN.md — sandbox bu olmadan tüm dış bağlantıları sessizce engeller). -->
 	<key>com.apple.security.network.client</key>
 	<true/>
-	<!-- Firebase Auth, oturum bilgilerini Keychain'de saklıyor — sandbox'ta
-	     bu paylaşım grubu olmadan "keychain'e erişilemedi" hatası verir. -->
-	<key>keychain-access-groups</key>
-	<array>
-		<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	</array>
 	<!-- Sandbox altında bu olmadan NSOpenPanel (klasör/dosya seçme) hiç
 	     açılmaz veya seçilen klasöre erişim verilmez — "Klasör Seç" ve
 	     "İçe Aktar" butonları bu yüzden tepkisiz kalıyordu. -->

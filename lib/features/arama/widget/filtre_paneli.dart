@@ -29,9 +29,11 @@ class FiltrePaneli extends StatelessWidget {
               onChanged: (bool? deger) => onDegisti(deger ?? false),
               activeColor: renkler.accent,
             ),
-            Text(
-              'Pasif (üyeliği sona ermiş) kayıtları da göster',
-              style: AppTypography.caption.copyWith(color: renkler.textSecondary),
+            Flexible(
+              child: Text(
+                'Pasif (üyeliği sona ermiş) kayıtları da göster',
+                style: AppTypography.caption.copyWith(color: renkler.textSecondary),
+              ),
             ),
           ],
         ),

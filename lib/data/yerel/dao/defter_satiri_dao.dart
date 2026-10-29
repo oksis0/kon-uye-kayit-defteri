@@ -25,6 +25,9 @@ class DefterSatiriDao extends DatabaseAccessor<AppVeritabani>
   Future<int> ekle(DefterSatirlariCompanion satir) =>
       into(defterSatirlari).insert(satir);
 
+  Future<void> upsert(DefterSatirlariCompanion satir) =>
+      into(defterSatirlari).insertOnConflictUpdate(satir);
+
   Future<bool> guncelle(DefterSatirlariCompanion satir) =>
       update(defterSatirlari).replace(satir);
 

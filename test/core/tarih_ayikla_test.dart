@@ -35,6 +35,36 @@ void main() {
       expect(d!.year, 1974);
     });
 
+    test('Noktalama veya boşluk içeren tarihleri temizleyip ayrıştırır', () {
+      final DateTime? d = tarihiAyristir('15 . 04 . 1974.');
+      expect(d, isNotNull);
+      expect(d!.year, 1974);
+      expect(d.month, 4);
+      expect(d.day, 15);
+    });
+
+    test('Türkçe ay isimlerini doğru ayrıştırır', () {
+      final DateTime? d1 = tarihiAyristir('15 Nisan 1974');
+      expect(d1, isNotNull);
+      expect(d1!.year, 1974);
+      expect(d1.month, 4);
+      expect(d1.day, 15);
+
+      final DateTime? d2 = tarihiAyristir('1 Mayıs 1980');
+      expect(d2, isNotNull);
+      expect(d2!.year, 1980);
+      expect(d2.month, 5);
+      expect(d2.day, 1);
+    });
+
+    test('Metin içindeki tam tarihi ayıklar (örn. ULUS 15.04.1974)', () {
+      final DateTime? d = tarihiAyristir('ULUS 15.04.1974');
+      expect(d, isNotNull);
+      expect(d!.year, 1974);
+      expect(d.month, 4);
+      expect(d.day, 15);
+    });
+
     test('Boş veya geçersiz metinler için null döner', () {
       expect(tarihiAyristir(null), isNull);
       expect(tarihiAyristir(''), isNull);

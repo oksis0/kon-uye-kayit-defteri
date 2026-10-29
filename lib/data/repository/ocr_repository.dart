@@ -29,10 +29,14 @@ class OcrRepository {
   /// ★ Bu ay kaç sayfa OCR yapıldığı — bizim tahmini sayacımız (PLAN.md §9).
   /// Firestore yoksa (bulut yapılandırılmamışsa) kota takibi anlamsız,
   /// 0 döner (sınırsız kabul edilir).
-  Future<int> kotaKullanimi() {
+  Future<int> kotaKullanimi() async {
     final FirestoreServisi? firestore = _firestore;
-    if (firestore == null) return Future<int>.value(0);
-    return firestore.kotaOku(_guncelAy);
+    if (firestore == null) return 0;
+    try {
+      return await firestore.kotaOku(_guncelAy);
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<bool> kotaDoluMu() async {
@@ -48,7 +52,7 @@ class OcrRepository {
     final String operationId = await _worker.ocrBaslat(gorselVerisi);
     final FirestoreServisi? firestore = _firestore;
     if (firestore != null) {
-      unawaited(firestore.kotaArtir(_guncelAy));
+      unawaited(firestore.kotaArtir(_guncelAy).catchError((_) {}));
     }
     return operationId;
   }
