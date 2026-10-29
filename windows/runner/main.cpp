@@ -17,6 +17,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
+  // Ensure current working directory is the application directory
+  // so that relative paths (like L"data") always resolve correctly.
+  wchar_t exe_path[MAX_PATH];
+  if (::GetModuleFileNameW(nullptr, exe_path, MAX_PATH) > 0) {
+    std::wstring path(exe_path);
+    size_t last_slash = path.find_last_of(L"\\/");
+    if (last_slash != std::wstring::npos) {
+      ::SetCurrentDirectoryW(path.substr(0, last_slash).c_str());
+    }
+  }
+
   flutter::DartProject project(L"data");
 
   std::vector<std::string> command_line_arguments =
@@ -28,6 +39,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
   if (!window.Create(L"KON Üye Kayıt Defteri", origin, size)) {
+    ::MessageBoxW(
+        nullptr,
+        L"Uygulama penceresi başlatılamadı.\n\nLütfen uygulamanın kurulu olduğu klasördeki 'data' klasörünün ve gerekli sistem bileşenlerinin mevcut olduğunu kontrol edin.",
+        L"KON Üye Kayıt Defteri",
+        MB_ICONERROR | MB_OK);
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

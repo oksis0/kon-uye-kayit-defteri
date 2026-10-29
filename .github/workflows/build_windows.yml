@@ -9,6 +9,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: Windows x64 Installer Oluştur
@@ -51,6 +54,11 @@ jobs:
       - name: Windows x64 Release Derle
         run: flutter build windows --release --dart-define-from-file=env.json
 
+      - name: Visual C++ 2015-2022 x64 Redistributable İndir
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile "windows\installer\vc_redist.x64.exe"
+
       - name: Inno Setup ile Kurulum Dosyasını Paketle
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\installer\inno_setup.iss
@@ -62,3 +70,10 @@ jobs:
           path: build\windows\installer\KON_Uye_Kayit_Defteri_Kurulum_x64.exe
           if-no-files-found: error
           retention-days: 30
+
+      - name: GitHub Release v1.0.0 Güncelle
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v1.0.0 build\windows\installer\KON_Uye_Kayit_Defteri_Kurulum_x64.exe --clobber
