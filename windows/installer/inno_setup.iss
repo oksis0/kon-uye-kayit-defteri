@@ -38,25 +38,5 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingD
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
 
 [Run]
-Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /passive /norestart"; StatusMsg: "Microsoft Visual C++ çalışma zamanı bileşenleri kuruluyor..."; Check: VCRedistNeedsInstall; Flags: waituntilterminated
+Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /passive /norestart"; StatusMsg: "Microsoft Visual C++ çalışma zamanı bileşenleri güncelleniyor..."; Flags: waituntilterminated skipifdoesntexist
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; WorkingDir: "{app}"
-
-[Code]
-function VCRedistNeedsInstall: Boolean;
-var
-  Installed: Cardinal;
-begin
-  Result := True;
-  if not FileExists(ExpandConstant('{tmp}\vc_redist.x64.exe')) then
-  begin
-    Result := False;
-    Exit;
-  end;
-
-  // Visual C++ 2015-2022 x64 sistemde zaten yuklu mu kontrol et
-  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Installed', Installed) then
-  begin
-    if Installed = 1 then
-      Result := False;
-  end;
-end;

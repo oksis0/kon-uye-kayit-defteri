@@ -57,15 +57,37 @@ jobs:
       - name: MSVC Runtime DLL'lerini Doğrudan Paketle (App-Local CRT)
         shell: pwsh
         run: |
-          $msvcDirs = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC" -Recurse -Directory -Filter "Microsoft.VC14*.CRT" -ErrorAction SilentlyContinue
-          $crtDir = $msvcDirs | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
-          if ($crtDir) {
-            Write-Host "Kullanilan CRT dizini: $($crtDir.FullName)"
-            Copy-Item "$($crtDir.FullName)\*.dll" -Destination "build\windows\x64\runner\Release\" -Force
-            Get-ChildItem "build\windows\x64\runner\Release\" -Filter "*.dll" | Select-Object Name
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $vsPath = & $vswhere -latest -property installationPath
           } else {
-            Write-Warning "CRT dizini bulunamadi!"
+            $vsPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
           }
+          Write-Host "Visual Studio Dizini: $vsPath"
+
+          $redistBase = Join-Path $vsPath "VC\Redist\MSVC"
+          $crtDirs = Get-ChildItem -Path $redistBase -Recurse -Directory -Filter "*CRT*" -ErrorAction SilentlyContinue |
+                     Where-Object { $_.FullName -match 'x64' -and $_.FullName -notmatch 'onecore' -and $_.FullName -notmatch 'arm' }
+          $targetDir = $crtDirs | Select-Object -First 1
+
+          if ($targetDir) {
+            Write-Host "Kullanilan CRT dizini: $($targetDir.FullName)"
+            Copy-Item "$($targetDir.FullName)\*.dll" -Destination "build\windows\x64\runner\Release\" -Force
+          } else {
+            Write-Warning "Standart CRT dizini bulunamadi, VC icinde genel arama yapiliyor..."
+            $foundDll = Get-ChildItem -Path "$vsPath\VC" -Recurse -Filter "msvcp140.dll" -ErrorAction SilentlyContinue |
+                        Where-Object { $_.FullName -match 'x64' -and $_.FullName -notmatch 'onecore' -and $_.FullName -notmatch 'arm' } |
+                        Select-Object -First 1
+            if ($foundDll) {
+              Write-Host "Bulunan DLL dizini: $($foundDll.DirectoryName)"
+              Copy-Item "$($foundDll.DirectoryName)\*.dll" -Destination "build\windows\x64\runner\Release\" -Force
+            } else {
+              Write-Error "MSVC CRT DLL'leri bulunamadi!"
+            }
+          }
+
+          Write-Host "Release klasorundeki DLL listesi:"
+          Get-ChildItem "build\windows\x64\runner\Release\" -Filter "*.dll" | Select-Object Name
 
       - name: Visual C++ 2015-2022 x64 Redistributable İndir
         shell: pwsh
