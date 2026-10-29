@@ -42,6 +42,9 @@ class _GirisEkraniState extends ConsumerState<GirisEkrani> {
   }
 
   String _hataMesajiCevir(Object hata) {
+    if (hata is AuthServisiHatasi) {
+      return hata.mesaj;
+    }
     final String hataMetni = hata.toString().toLowerCase();
     if (hataMetni.contains('keychain') || hataMetni.contains('-34018')) {
       return 'macOS Anahtar Zinciri (Keychain) erişimi engellendi. "Çevrimdışı / Yerel Olarak Devam Et" butonu ile uygulamaya doğrudan erişebilirsiniz.';
@@ -53,7 +56,7 @@ class _GirisEkraniState extends ConsumerState<GirisEkrani> {
         'invalid-email' => 'Geçersiz e-posta adresi.',
         'user-disabled' => 'Bu hesap devre dışı bırakılmış.',
         'too-many-requests' => 'Çok fazla başarısız deneme. Lütfen biraz sonra tekrar deneyin.',
-        'network-request-failed' => 'İnternet bağlantısı yok — bağlantınızı kontrol edin.',
+        'network-request-failed' => 'İnternet bağlantısı kurulamadı. Lütfen bağlantınızı kontrol edin veya "Çevrimdışı / Yerel Olarak Devam Et" butonunu kullanın.',
         _ => 'Giriş yapılamadı: ${hata.message ?? hata.code}',
       };
     }

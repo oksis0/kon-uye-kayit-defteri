@@ -62,21 +62,31 @@ class AuthServisi {
       return;
     }
     try {
-      await _auth.signInWithEmailAndPassword(email: ePosta, password: sifre);
+      await _auth
+          .signInWithEmailAndPassword(email: ePosta, password: sifre)
+          .timeout(const Duration(seconds: 4));
       await _oturumTemizleYerel();
       _yerelGirisYapildi = false;
       _authDurumKontrolcu.add(_auth.currentUser);
     } catch (e) {
+      developer.log('Native signInWithEmailAndPassword hatası: $e (REST deneniyor)', name: 'AuthServisi');
       final String hataMetni = e.toString().toLowerCase();
-      // macOS Keychain erişim engeli veya keychain yetki hatası (-34018) / platform desteği olmaması durumunda:
-      if (hataMetni.contains('keychain') ||
-          hataMetni.contains('-34018') ||
-          hataMetni.contains('unsupported') ||
-          hataMetni.contains('plugin')) {
+      // Kullanıcı veya şifre doğrudan yanlışsa rethrow
+      if (hataMetni.contains('wrong-password') ||
+          hataMetni.contains('user-not-found') ||
+          hataMetni.contains('invalid-credential') ||
+          hataMetni.contains('user-disabled') ||
+          hataMetni.contains('invalid-email')) {
+        rethrow;
+      }
+      // Ağ hatası (network-request-failed), zaman aşımı, keychain veya native SDK erişim engellerinde REST API ile giriş yap:
+      try {
         await _restGirisYap(ePosta: ePosta, sifre: sifre);
         return;
+      } catch (restHata) {
+        developer.log('REST girisYap da başarısız: $restHata', name: 'AuthServisi');
+        rethrow;
       }
-      rethrow;
     }
   }
 
@@ -136,6 +146,10 @@ class AuthServisi {
             mesaj = 'Giriş hatası: $hataKodu';
           }
         }
+      } else if (dioErr.type == DioExceptionType.connectionTimeout ||
+          dioErr.type == DioExceptionType.receiveTimeout ||
+          dioErr.type == DioExceptionType.connectionError) {
+        mesaj = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.';
       }
       throw AuthServisiHatasi(mesaj);
     } catch (e) {
