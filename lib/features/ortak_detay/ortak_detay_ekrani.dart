@@ -180,7 +180,12 @@ class _DahaFazlaMenusu extends StatelessWidget {
       icon: const Icon(Icons.more_vert),
       itemBuilder: (BuildContext context) => <PopupMenuEntry<void>>[
         PopupMenuItem<void>(
-          onTap: () => unawaited(_kaliciSilAkisiniBaslat(context)),
+          onTap: () async {
+            await Future<void>.delayed(Duration.zero);
+            if (context.mounted) {
+              unawaited(kaliciSilOnayli(context: context, repo: repo, ortak: ortak));
+            }
+          },
           child: Row(
             children: <Widget>[
               Icon(Icons.delete_forever_outlined, size: 18, color: context.renkler.error),
@@ -192,21 +197,75 @@ class _DahaFazlaMenusu extends StatelessWidget {
       ],
     );
   }
+}
 
-  Future<void> _kaliciSilAkisiniBaslat(BuildContext context) async {
-    // PopupMenuItem'ın kendi kapanma animasyonuyla çakışmasın diye bir
-    // sonraki frame'e ertele.
-    await Future<void>.delayed(Duration.zero);
-    if (!context.mounted) return;
+/// Bir ortağı çift onaylı diyalog ve işlem göstergesiyle kalıcı olarak siler.
+Future<void> kaliciSilOnayli({
+  required BuildContext context,
+  required OrtakRepository repo,
+  required Ortak ortak,
+}) async {
+  final bool? onaylandi = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) => _KaliciSilDialogu(ortak: ortak),
+  );
+  if (onaylandi != true || !context.mounted) return;
 
-    final bool? onaylandi = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) => _KaliciSilDialogu(ortak: ortak),
-    );
-    if (onaylandi != true || !context.mounted) return;
+  // Silme işlemi sürerken kullanıcıyı bilgilendiren modal gösterge
+  unawaited(showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext dialogContext) => PopScope(
+      canPop: false,
+      child: Center(
+        child: Card(
+          elevation: 6,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const CircularProgressIndicator(),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  '${ortak.adSoyad} siliniyor...',
+                  style: AppTypography.body.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Bulut ve yerel kayıtlar temizleniyor',
+                  style: AppTypography.caption.copyWith(color: context.renkler.textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  ));
 
+  try {
     await repo.kaliciSil(ortak.id);
-    if (context.mounted) unawaited(Navigator.of(context).maybePop());
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop(); // Progress dialog kapat
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${ortak.adSoyad} (No: ${ortak.ortakNo}) kalıcı olarak silindi.'),
+          backgroundColor: context.renkler.success,
+        ),
+      );
+      Navigator.of(context).maybePop(); // Detay ekranından çık
+    }
+  } catch (e) {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop(); // Progress dialog kapat
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Silme işlemi sırasında hata: $e'),
+          backgroundColor: context.renkler.error,
+        ),
+      );
+    }
   }
 }
 
@@ -279,17 +338,6 @@ class IslemButonlari extends StatelessWidget {
   final Ortak ortak;
   final OrtakRepository? repo;
 
-  Future<void> _kaliciSilAkisiniBaslat(BuildContext context) async {
-    final bool? onaylandi = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) => _KaliciSilDialogu(ortak: ortak),
-    );
-    if (onaylandi != true || !context.mounted) return;
-
-    await repo?.kaliciSil(ortak.id);
-    if (context.mounted) unawaited(Navigator.of(context).maybePop());
-  }
-
   @override
   Widget build(BuildContext context) {
     final AppColors renkler = context.renkler;
@@ -349,7 +397,11 @@ class IslemButonlari extends StatelessWidget {
           ),
           icon: const Icon(Icons.delete_forever_outlined, size: 18),
           label: const Text('Ortağı Kalıcı Sil'),
-          onPressed: () => _kaliciSilAkisiniBaslat(context),
+          onPressed: () {
+            if (repo != null) {
+              unawaited(kaliciSilOnayli(context: context, repo: repo!, ortak: ortak));
+            }
+          },
         ),
       ],
     );

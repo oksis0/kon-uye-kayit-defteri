@@ -144,6 +144,7 @@ class OrtakRepository {
     final Ortak? ortak = await idIleGetir(ortakId);
     if (ortak == null) return;
 
+    final String? r2Anahtari = ortak.belgeR2Anahtari;
     final FirestoreServisi? firestore = _firestore;
     if (firestore == null) {
       // Bulut yapılandırılmamış — silinecek uzak bir şey yok.
@@ -151,8 +152,13 @@ class OrtakRepository {
       return;
     }
 
-    await firestore.silmeTalebiYaz(ortakId, r2Anahtari: ortak.belgeR2Anahtari, adim: 'r2');
-    await _mezarTasiIzleyerekSil(ortakId, ortak.belgeR2Anahtari, firestore);
+    try {
+      await firestore.silmeTalebiYaz(ortakId, r2Anahtari: r2Anahtari, adim: 'r2');
+    } catch (e) {
+      developer.log('silmeTalebiYaz hatası: $e', name: 'OrtakRepository');
+    }
+
+    await _mezarTasiIzleyerekSil(ortakId, r2Anahtari, firestore);
   }
 
   /// Açılışta çağrılır — elektrik kesintisi/çökme yüzünden yarıda kalmış
@@ -161,18 +167,30 @@ class OrtakRepository {
     final FirestoreServisi? firestore = _firestore;
     if (firestore == null) return;
 
-    final List<SilmeTalebi> talepler = await firestore.silmeTalepleriGetir();
-    for (final SilmeTalebi talep in talepler) {
-      try {
-        await _mezarTasiIzleyerekSil(talep.ortakId, talep.r2Anahtari, firestore);
-      } catch (e, s) {
-        developer.log(
-          'Yarım kalan kalıcı silme tamamlanamadı: ${talep.ortakId}',
-          name: 'OrtakRepository',
-          error: e,
-          stackTrace: s,
-        );
+    try {
+      final List<SilmeTalebi> talepler = await firestore.silmeTalepleriGetir();
+      for (final SilmeTalebi talep in talepler) {
+        if (talep.adim == 'tamamlandi') {
+          // Zaten tamamlanmış silme, yerelde kalmışsa yereli temizle
+          final OrtakSatiri? yerel = await _db.ortakDao.idIleBul(talep.ortakId);
+          if (yerel != null) {
+            await _yereldenTamamenSil(talep.ortakId);
+          }
+          continue;
+        }
+        try {
+          await _mezarTasiIzleyerekSil(talep.ortakId, talep.r2Anahtari, firestore);
+        } catch (e, s) {
+          developer.log(
+            'Yarım kalan kalıcı silme tamamlanamadı: ${talep.ortakId}',
+            name: 'OrtakRepository',
+            error: e,
+            stackTrace: s,
+          );
+        }
       }
+    } catch (e) {
+      developer.log('yarimKalanSilmeleriTamamla hatası: $e', name: 'OrtakRepository');
     }
   }
 
@@ -181,19 +199,46 @@ class OrtakRepository {
     String? r2Anahtari,
     FirestoreServisi firestore,
   ) async {
-    if (r2Anahtari != null && _belgeRepo != null) {
-      await _belgeRepo.sil(r2Anahtari);
+    if (r2Anahtari != null && r2Anahtari.isNotEmpty && _belgeRepo != null) {
+      try {
+        await _belgeRepo.sil(r2Anahtari).timeout(const Duration(seconds: 4));
+      } catch (e) {
+        developer.log('R2 görseli silinirken hata (yoksayıldı): $e', name: 'OrtakRepository');
+      }
     }
-    await firestore.silmeTalebiGuncelle(ortakId, adim: 'firestore');
+    try {
+      await firestore.silmeTalebiGuncelle(ortakId, adim: 'firestore');
+    } catch (e) {
+      developer.log('silmeTalebiGuncelle firestore hatası: $e', name: 'OrtakRepository');
+    }
 
-    await firestore.ortakSil(ortakId);
-    await firestore.silmeTalebiGuncelle(ortakId, adim: 'yerel');
+    try {
+      await firestore.ortakSil(ortakId);
+    } catch (e) {
+      developer.log('ortakSil Firestore hatası: $e', name: 'OrtakRepository');
+    }
+
+    try {
+      await firestore.silmeTalebiGuncelle(ortakId, adim: 'tamamlandi');
+    } catch (e) {
+      developer.log('silmeTalebiGuncelle tamamlandi hatası: $e', name: 'OrtakRepository');
+    }
 
     await _yereldenTamamenSil(ortakId);
-    await firestore.silmeTalebiSil(ortakId);
   }
 
   Future<void> _yereldenTamamenSil(String ortakId) async {
+    final OrtakSatiri? ortak = await _db.ortakDao.idIleBul(ortakId);
+    if (ortak?.yerelDosyaYolu != null && ortak!.yerelDosyaYolu!.isNotEmpty) {
+      try {
+        final File yerelDosya = File(ortak.yerelDosyaYolu!);
+        if (await yerelDosya.exists()) {
+          await yerelDosya.delete();
+        }
+      } catch (e) {
+        developer.log('Yerel dosya silinemedi: $e', name: 'OrtakRepository');
+      }
+    }
     await _db.defterSatiriDao.ortaginTumSatirlariniSil(ortakId);
     await _db.ortakDao.kaliciSil(ortakId);
   }
@@ -246,14 +291,26 @@ class OrtakRepository {
   }
 
   /// Yerelde henüz Firestore'a itilmemiş veya bekleyen ortakları bulup
-  /// Firestore'a yükler.
+  /// Firestore'a yükler. Silinmiş (mezar taşı olan) ortakları yüklemez, aksine yerelden temizler.
   Future<int> bekleyenleriFirestoreyeIt() async {
     final FirestoreServisi? firestore = _firestore;
     if (firestore == null) return 0;
 
+    Set<String> silinenIdler = <String>{};
+    try {
+      final List<SilmeTalebi> silinenler = await firestore.silmeTalepleriGetir();
+      silinenIdler = silinenler.map((SilmeTalebi s) => s.ortakId).toSet();
+    } catch (e) {
+      developer.log('bekleyenleriFirestoreyeIt silinenler getirilemedi: $e', name: 'OrtakRepository');
+    }
+
     final List<OrtakSatiri> bekleyenler = await _db.ortakDao.bekleyenleriGetir();
     int basarili = 0;
     for (final OrtakSatiri satir in bekleyenler) {
+      if (silinenIdler.contains(satir.id)) {
+        await _yereldenTamamenSil(satir.id);
+        continue;
+      }
       final bool tamam = await firestoreyeIt(satir.id);
       if (tamam) basarili++;
     }
@@ -279,6 +336,21 @@ class OrtakRepository {
   Future<int> firestoretenSenkronizeEt() async {
     final FirestoreServisi? firestore = _firestore;
     if (firestore == null) return 0;
+
+    // 1. Önce mezar taşlarını (silinmiş ortakları) kontrol et ve yerelde varsa sil
+    try {
+      final List<SilmeTalebi> silinenler = await firestore.silmeTalepleriGetir();
+      for (final SilmeTalebi talep in silinenler) {
+        if (talep.ortakId.isNotEmpty) {
+          final OrtakSatiri? yerel = await _db.ortakDao.idIleBul(talep.ortakId);
+          if (yerel != null) {
+            await _yereldenTamamenSil(talep.ortakId);
+          }
+        }
+      }
+    } catch (e) {
+      developer.log('Silme talepleri senkronize edilirken hata: $e', name: 'OrtakRepository');
+    }
 
     final String? sonSenkronMetin = await _db.metaDao.degerAl(anahtarSonSenkron);
     final DateTime sonSenkron = sonSenkronMetin != null
@@ -316,14 +388,27 @@ class OrtakRepository {
   /// Yereldeki TÜM ortakları ve satırlarını Firestore'a senkronize eder.
   /// Özellikle uygulama ilk kez buluta bağlandığında veya telefondan erişim için
   /// yereldeki tüm üyelerin eksiksiz bulutta bulunmasını garanti eder.
+  /// Silinmiş (mezar taşı bulunan) üyeleri kesinlikle Firestore'a geri yüklemez.
   Future<int> tumunuFirestoreyeIt() async {
     final FirestoreServisi? firestore = _firestore;
     if (firestore == null) return 0;
+
+    Set<String> silinenIdler = <String>{};
+    try {
+      final List<SilmeTalebi> silinenler = await firestore.silmeTalepleriGetir();
+      silinenIdler = silinenler.map((SilmeTalebi s) => s.ortakId).toSet();
+    } catch (e) {
+      developer.log('tumunuFirestoreyeIt silinenler getirilemedi: $e', name: 'OrtakRepository');
+    }
 
     final List<OrtakSatiri> satirlar = await _db.ortakDao.tumunuGetir();
     int basarili = 0;
 
     for (final OrtakSatiri satir in satirlar) {
+      if (silinenIdler.contains(satir.id)) {
+        await _yereldenTamamenSil(satir.id);
+        continue;
+      }
       try {
         final Ortak ortak = _ortagaDonustur(satir);
         final List<DefterSatiriSatiri> defterSatirlari =

@@ -98,10 +98,10 @@ class FirestoreServisi {
     if (!_yetkili) return;
     if (FirebaseAuth.instance.currentUser != null) {
       try {
-        await _ortaklarKoleksiyonu.doc(ortakId).delete();
+        await _ortaklarKoleksiyonu.doc(ortakId).delete().timeout(const Duration(seconds: 4));
         return;
       } catch (e) {
-        developer.log('Firestore ortakSil SDK hatası: $e', name: 'Firestore');
+        developer.log('Firestore ortakSil SDK hatası: $e (REST deneniyor)', name: 'Firestore');
       }
     }
 
@@ -234,13 +234,13 @@ class FirestoreServisi {
       try {
         await _silmeTalepleriKoleksiyonu.doc(ortakId).set(<String, dynamic>{
           'ortakId': ortakId,
-          'r2Anahtari': r2Anahtari,
+          'r2Anahtari': ?r2Anahtari,
           'adim': adim,
           'olusturmaTarihi': FieldValue.serverTimestamp(),
-        });
+        }).timeout(const Duration(seconds: 4));
         return;
       } catch (e) {
-        developer.log('Firestore silmeTalebiYaz SDK hatası: $e', name: 'Firestore');
+        developer.log('Firestore silmeTalebiYaz SDK hatası: $e (REST deneniyor)', name: 'Firestore');
       }
     }
 
@@ -250,7 +250,7 @@ class FirestoreServisi {
     try {
       final Map<String, dynamic> docData = <String, dynamic>{
         'ortakId': ortakId,
-        'r2Anahtari': r2Anahtari,
+        'r2Anahtari': ?r2Anahtari,
         'adim': adim,
         'olusturmaTarihi': DateTime.now().toUtc(),
       };
@@ -274,10 +274,13 @@ class FirestoreServisi {
     if (!_yetkili) return;
     if (FirebaseAuth.instance.currentUser != null) {
       try {
-        await _silmeTalepleriKoleksiyonu.doc(ortakId).update(<String, dynamic>{'adim': adim});
+        await _silmeTalepleriKoleksiyonu
+            .doc(ortakId)
+            .update(<String, dynamic>{'adim': adim})
+            .timeout(const Duration(seconds: 4));
         return;
       } catch (e) {
-        developer.log('Firestore silmeTalebiGuncelle SDK hatası: $e', name: 'Firestore');
+        developer.log('Firestore silmeTalebiGuncelle SDK hatası: $e (REST deneniyor)', name: 'Firestore');
       }
     }
 
@@ -309,10 +312,10 @@ class FirestoreServisi {
     if (!_yetkili) return;
     if (FirebaseAuth.instance.currentUser != null) {
       try {
-        await _silmeTalepleriKoleksiyonu.doc(ortakId).delete();
+        await _silmeTalepleriKoleksiyonu.doc(ortakId).delete().timeout(const Duration(seconds: 4));
         return;
       } catch (e) {
-        developer.log('Firestore silmeTalebiSil SDK hatası: $e', name: 'Firestore');
+        developer.log('Firestore silmeTalebiSil SDK hatası: $e (REST deneniyor)', name: 'Firestore');
       }
     }
 
@@ -339,7 +342,9 @@ class FirestoreServisi {
     if (!_yetkili) return const <SilmeTalebi>[];
     if (FirebaseAuth.instance.currentUser != null) {
       try {
-        final QuerySnapshot<Map<String, dynamic>> anlik = await _silmeTalepleriKoleksiyonu.get();
+        final QuerySnapshot<Map<String, dynamic>> anlik = await _silmeTalepleriKoleksiyonu
+            .get()
+            .timeout(const Duration(seconds: 4));
         return anlik.docs.map((QueryDocumentSnapshot<Map<String, dynamic>> doc) {
           final Map<String, dynamic> veri = doc.data();
           return SilmeTalebi(
@@ -349,7 +354,7 @@ class FirestoreServisi {
           );
         }).toList();
       } catch (e) {
-        developer.log('Firestore silmeTalepleriGetir SDK hatası: $e', name: 'Firestore');
+        developer.log('Firestore silmeTalepleriGetir SDK hatası: $e (REST deneniyor)', name: 'Firestore');
       }
     }
 
@@ -359,6 +364,7 @@ class FirestoreServisi {
     try {
       final Response<Map<String, dynamic>> res = await _dio.get<Map<String, dynamic>>(
         'https://firestore.googleapis.com/v1/projects/${Env.firebaseProjectId}/databases/(default)/documents/silmeTalepleri',
+        queryParameters: <String, dynamic>{'pageSize': 300},
         options: Options(
           headers: <String, String>{
             'Authorization': 'Bearer $token',

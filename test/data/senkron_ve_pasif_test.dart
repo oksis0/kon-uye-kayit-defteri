@@ -98,5 +98,36 @@ void main() {
       expect(satirlar.first.id, 'satir-1');
       expect(satirlar.first.ortakId, 'test-2');
     });
+
+    test('kaliciSil ortak ve tum defter satirlarini veritabanindan siler', () async {
+      final Ortak ortak = Ortak(
+        id: 'test-sil-1',
+        adSoyad: 'Silinecek Üye',
+        tcKimlikNo: '11111111111',
+        ortakNo: '999',
+        aramaAnahtari: 'silinecek uye',
+        olusturmaTarihi: DateTime.now(),
+        guncellemeTarihi: DateTime.now(),
+        aktif: true,
+      );
+      await repo.ekle(ortak);
+      await repo.satirEkle(
+        const DefterSatiri(
+          id: 'satir-sil-1',
+          ortakId: 'test-sil-1',
+          tur: SatirTuru.sermaye,
+          siraNo: 1,
+          miktarKurus: 100000,
+        ),
+      );
+
+      expect(await repo.idIleGetir('test-sil-1'), isNotNull);
+      expect((await db.defterSatiriDao.ortaginSatirlariniGetir('test-sil-1')).length, 1);
+
+      await repo.kaliciSil('test-sil-1');
+
+      expect(await repo.idIleGetir('test-sil-1'), isNull);
+      expect((await db.defterSatiriDao.ortaginSatirlariniGetir('test-sil-1')).isEmpty, isTrue);
+    });
   });
 }
